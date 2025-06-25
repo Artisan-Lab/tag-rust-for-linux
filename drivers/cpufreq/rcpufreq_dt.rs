@@ -26,9 +26,9 @@ fn find_supply_name_exact(dev: &Device, name: &str) -> Option<CString> {
 }
 
 /// Finds supply name for the CPU from DT.
-fn find_supply_names(dev: &Device, cpu: u32) -> Option<KVec<CString>> {
+fn find_supply_names(dev: &Device, cpu: cpu::CpuId) -> Option<KVec<CString>> {
     // Try "cpu0" for older DTs, fallback to "cpu".
-    let name = (cpu == 0)
+    let name = (cpu.as_u32() == 0)
         .then(|| find_supply_name_exact(dev, "cpu0"))
         .flatten()
         .or_else(|| find_supply_name_exact(dev, "cpu"))?;
@@ -220,7 +220,7 @@ impl platform::Driver for CPUFreqDTDriver {
 module_platform_driver! {
     type: CPUFreqDTDriver,
     name: "cpufreq-dt",
-    author: "Viresh Kumar <viresh.kumar@linaro.org>",
+    authors: ["Viresh Kumar <viresh.kumar@linaro.org>"],
     description: "Generic CPUFreq DT driver",
     license: "GPL v2",
 }

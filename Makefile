@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 16
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc3
 NAME = Baby Opossum Posse
 
 # *DOCUMENTATION*
@@ -479,11 +479,17 @@ export rust_common_flags := --edition=2021 \
 			    -Wrust_2018_idioms \
 			    -Wunreachable_pub \
 			    -Wclippy::all \
+			    -Wclippy::as_ptr_cast_mut \
+			    -Wclippy::as_underscore \
+			    -Wclippy::cast_lossless \
 			    -Wclippy::ignored_unit_patterns \
 			    -Wclippy::mut_mut \
 			    -Wclippy::needless_bitwise_bool \
 			    -Aclippy::needless_lifetimes \
 			    -Wclippy::no_mangle_with_rust_abi \
+			    -Wclippy::ptr_as_ptr \
+			    -Wclippy::ptr_cast_constness \
+			    -Wclippy::ref_as_ptr \
 			    -Wclippy::undocumented_unsafe_blocks \
 			    -Wclippy::unnecessary_safety_comment \
 			    -Wclippy::unnecessary_safety_doc \
@@ -1832,12 +1838,9 @@ rustfmtcheck: rustfmt
 # Misc
 # ---------------------------------------------------------------------------
 
-# Run misc checks when ${KBUILD_EXTRA_WARN} contains 1
 PHONY += misc-check
-ifneq ($(findstring 1,$(KBUILD_EXTRA_WARN)),)
 misc-check:
 	$(Q)$(srctree)/scripts/misc-check
-endif
 
 all: misc-check
 

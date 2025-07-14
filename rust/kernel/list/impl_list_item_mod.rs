@@ -5,7 +5,7 @@
 //! Helpers for implementing list traits safely.
 
 use crate::list::ListLinks;
-
+extern crate safety_macro as safety;
 /// Declares that this type has a `ListLinks<ID>` field at a fixed offset.
 ///
 /// This trait is only used to help implement `ListItem` safely. If `ListItem` is implemented
@@ -30,6 +30,7 @@ pub unsafe trait HasListLinks<const ID: u64 = 0> {
     /// [`ListLinks<T, ID>`]: ListLinks
     // We don't really need this method, but it's necessary for the implementation of
     // `impl_has_list_links!` to be correct.
+    //#[safety::Precond_Typed(ptr, "Self")]
     #[inline]
     unsafe fn raw_get_list_links(ptr: *mut Self) -> *mut ListLinks<ID> {
         // SAFETY: The caller promises that the pointer is valid. The implementer promises that the

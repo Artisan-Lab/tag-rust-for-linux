@@ -5,7 +5,7 @@
 //! Helpers for implementing list traits safely.
 
 use crate::list::ListLinks;
-extern crate safety_macro as safety;
+
 /// Declares that this type has a `ListLinks<ID>` field at a fixed offset.
 ///
 /// This trait is only used to help implement `ListItem` safely. If `ListItem` is implemented

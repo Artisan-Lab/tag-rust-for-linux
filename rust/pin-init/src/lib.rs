@@ -289,7 +289,6 @@ use core::{
     pin::Pin,
     ptr::{self, NonNull},
 };
-extern crate safety_macro as safety;
 
 #[doc(hidden)]
 pub mod __internal;
@@ -1062,8 +1061,8 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     /// - the caller does not touch `slot` when `Err` is returned, they are only permitted to
     ///   deallocate.
     /// - `slot` will not move until it is dropped, i.e. it will be pinned.
-    // #[safety::Precond_Allocated(slot, T, 1, _)]
-    // #[safety::Hazard_Pinned(slot, _)]
+    // #[safety::precond::Allocated(slot, T, 1, _)]
+    // #[safety::hazard::Pinned(slot, _)]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E>;
 
     /// First initializes the value using `self` then calls the function `f` with the initialized
@@ -1104,8 +1103,8 @@ where
     I: PinInit<T, E>,
     F: FnOnce(Pin<&mut T>) -> Result<(), E>,
 {
-    #[safety::Precond_Allocated(slot, T, 1, _)]
-    #[safety::Hazard_Pinned(slot, _)]
+    #[safety::precond::Allocated(slot, T, 1, _)]
+    #[safety::hazard::Pinned(slot, _)]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: All requirements fulfilled since this function is `__pinned_init`.
         unsafe { self.0.__pinned_init(slot)? };
@@ -1164,7 +1163,7 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     /// - `slot` is a valid pointer to uninitialized memory.
     /// - the caller does not touch `slot` when `Err` is returned, they are only permitted to
     ///   deallocate.
-    // #[safety::Precond_Allocated(slot, T, 1, _)]
+    // #[safety::precond::Allocated(slot, T, 1, _)]
     unsafe fn __init(self, slot: *mut T) -> Result<(), E>;
 
     /// First initializes the value using `self` then calls the function `f` with the initialized
@@ -1214,7 +1213,7 @@ where
     I: Init<T, E>,
     F: FnOnce(&mut T) -> Result<(), E>,
 {
-    #[safety::Precond_Allocated(slot, T, 1, _)]
+    #[safety::precond::Allocated(slot, T, 1, _)]
     unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: All requirements fulfilled since this function is `__init`.
         unsafe { self.0.__pinned_init(slot)? };
@@ -1231,8 +1230,8 @@ where
     I: Init<T, E>,
     F: FnOnce(&mut T) -> Result<(), E>,
 {
-    #[safety::Precond_Allocated(slot, T, 1, _)]
-    #[safety::Hazard_Pinned(slot, _)]
+    #[safety::precond::Allocated(slot, T, 1, _)]
+    #[safety::hazard::Pinned(slot, _)]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: `__init` has less strict requirements compared to `__pinned_init`.
         unsafe { self.__init(slot) }
@@ -1401,7 +1400,7 @@ where
 
 // SAFETY: Every type can be initialized by-value.
 unsafe impl<T, E> Init<T, E> for T {
-    #[safety::Precond_Allocated(slot, T, 1, _)]
+    #[safety::precond::Allocated(slot, T, 1, _)]
     unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: TODO.
         unsafe { slot.write(self) };
@@ -1411,8 +1410,8 @@ unsafe impl<T, E> Init<T, E> for T {
 
 // SAFETY: Every type can be initialized by-value. `__pinned_init` calls `__init`.
 unsafe impl<T, E> PinInit<T, E> for T {
-    #[safety::Precond_Allocated(slot, T, 1, _)]
-    #[safety::Hazard_Pinned(slot, _)]
+    #[safety::precond::Allocated(slot, T, 1, _)]
+    #[safety::hazard::Pinned(slot, _)]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: TODO.
         unsafe { self.__init(slot) }

@@ -22,7 +22,6 @@ pub use self::arc::{impl_list_arc_safe, AtomicTracker, ListArc, ListArcSafe, Try
 mod arc_field;
 pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 
-extern crate safety_macro as safety;
 /// A linked list.
 ///
 /// All elements in this linked list will be [`ListArc`] references to the value. Since a value can
@@ -287,7 +286,7 @@ impl<const ID: u64> ListLinks<ID> {
     /// # Safety
     ///
     /// `me` must be dereferenceable.
-    #[safety::Precond_Typed(me, "ListLinks<ID>")]
+    #[safety::precond::Typed(me, "ListLinks<ID>")]
     #[inline]
     unsafe fn fields(me: *mut Self) -> *mut ListLinksFields {
         // SAFETY: The caller promises that the pointer is valid.
@@ -297,7 +296,7 @@ impl<const ID: u64> ListLinks<ID> {
     /// # Safety
     ///
     /// `me` must be dereferenceable.
-    #[safety::Precond_Typed(me, "ListLinksFields")]
+    #[safety::precond::Typed(me, "ListLinksFields")]
     #[inline]
     unsafe fn from_fields(me: *mut ListLinksFields) -> *mut Self {
         me.cast()

@@ -289,7 +289,6 @@ use core::{
     pin::Pin,
     ptr::{self, NonNull},
 };
-use safety_tool_lib::safety;
 
 #[doc(hidden)]
 pub mod __internal;
@@ -1062,8 +1061,8 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     /// - the caller does not touch `slot` when `Err` is returned, they are only permitted to
     ///   deallocate.
     /// - `slot` will not move until it is dropped, i.e. it will be pinned.
-    #[safety::precond::Allocated(slot, T, 1, _)]
-    #[safety::hazard::Pinned(slot, _)]
+    // #[safety::precond::Allocated(slot, T, 1, _)]
+    // #[safety::hazard::Pinned(slot, _)]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E>;
 
     /// First initializes the value using `self` then calls the function `f` with the initialized
@@ -1164,7 +1163,7 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     /// - `slot` is a valid pointer to uninitialized memory.
     /// - the caller does not touch `slot` when `Err` is returned, they are only permitted to
     ///   deallocate.
-    #[safety::precond::Allocated(slot, T, 1, _)]
+    // #[safety::precond::Allocated(slot, T, 1, _)]
     unsafe fn __init(self, slot: *mut T) -> Result<(), E>;
 
     /// First initializes the value using `self` then calls the function `f` with the initialized

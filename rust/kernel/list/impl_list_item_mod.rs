@@ -30,6 +30,7 @@ pub unsafe trait HasListLinks<const ID: u64 = 0> {
     /// [`ListLinks<T, ID>`]: ListLinks
     // We don't really need this method, but it's necessary for the implementation of
     // `impl_has_list_links!` to be correct.
+    //#[safety::Precond_Typed(ptr, "Self")]
     #[inline]
     unsafe fn raw_get_list_links(ptr: *mut Self) -> *mut ListLinks<ID> {
         // SAFETY: The caller promises that the pointer is valid. The implementer promises that the

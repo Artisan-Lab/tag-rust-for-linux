@@ -187,6 +187,7 @@ pub unsafe trait ListItem<const ID: u64 = 0>: ListArcSafe<ID> {
     /// # Safety
     ///
     /// The provided pointer must point at a valid value. (It need not be in an `Arc`.)
+    //#[safety::Memo(UserProperty, memo = "The provided pointer must point at a valid value.")] //valid_ptr(me)
     unsafe fn view_links(me: *const Self) -> *mut ListLinks<ID>;
 
     /// View the full value given its [`ListLinks`] field.
@@ -205,6 +206,8 @@ pub unsafe trait ListItem<const ID: u64 = 0>: ListArcSafe<ID> {
     ///   `prepare_to_insert`.
     /// * Since the most recent call to `prepare_to_insert`, the `post_remove` method must not have
     ///   been called.
+    //#[safety::Memo(UserProperty, memo = "The provided value 'me' must originate from the most recent call to 'prepare_to_insert'.")] //originate_from_recent(me, prepare_to_insert)
+    //#[safety::Memo(UserProperty, memo = "The provided value 'me' must originate from a call to view_links that happened after the most recent call to 'prepare_to_insert'.")] //originate_from(me, view_links, prepare_to_insert)
     unsafe fn view_value(me: *mut ListLinks<ID>) -> *const Self;
 
     /// This is called when an item is inserted into a [`List`].
@@ -223,6 +226,7 @@ pub unsafe trait ListItem<const ID: u64 = 0>: ListArcSafe<ID> {
     ///   called after this call to `prepare_to_insert`.
     ///
     /// [`Arc`]: crate::sync::Arc
+    //#[safety::Memo(UserProperty, memo = "The provided pointer 'me' must point at a valid value in an Arc.")] //wrapper(me, Arc)
     unsafe fn prepare_to_insert(me: *const Self) -> *mut ListLinks<ID>;
 
     /// This undoes a previous call to `prepare_to_insert`.
@@ -235,6 +239,7 @@ pub unsafe trait ListItem<const ID: u64 = 0>: ListArcSafe<ID> {
     ///
     /// The provided pointer must be the pointer returned by the most recent call to
     /// `prepare_to_insert`.
+    //#[safety::Memo(originate_from_recent(me, prepare_to_insert), memo = "The provided value 'me' must originate from the most recent call to 'prepare_to_insert'.")] //originate_from_recent(me, prepare_to_insert)
     unsafe fn post_remove(me: *mut ListLinks<ID>) -> *const Self;
 }
 
@@ -281,6 +286,7 @@ impl<const ID: u64> ListLinks<ID> {
     /// # Safety
     ///
     /// `me` must be dereferenceable.
+    #[safety::precond::Typed(me, "ListLinks<ID>")]
     #[inline]
     unsafe fn fields(me: *mut Self) -> *mut ListLinksFields {
         // SAFETY: The caller promises that the pointer is valid.
@@ -290,6 +296,7 @@ impl<const ID: u64> ListLinks<ID> {
     /// # Safety
     ///
     /// `me` must be dereferenceable.
+    #[safety::precond::Typed(me, "ListLinksFields")]
     #[inline]
     unsafe fn from_fields(me: *mut ListLinksFields) -> *mut Self {
         me.cast()
@@ -362,6 +369,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     ///
     /// * `next` must be an element in this list or null.
     /// * if `next` is null, then the list must be empty.
+    // seems no need to abstract, it is a specific usage
     unsafe fn insert_inner(
         &mut self,
         item: ListArc<T, ID>,
@@ -510,6 +518,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     ///
     /// The `item` pointer must point at an item in this list, and we must have `(*item).next ==
     /// next` and `(*item).prev == prev`.
+    // seems no need to abstract, it is a specific usage
     unsafe fn remove_internal_inner(
         &mut self,
         item: *mut ListLinksFields,
@@ -781,7 +790,7 @@ impl<'a, T: ?Sized + ListItem<ID>, const ID: u64> Iterator for Iter<'a, T, ID> {
 ///             if to_insert.value < next.value {
 ///                 break;
 ///             }
-///             cursor.move_next();
+///             cursor.move_next();/* */
 ///         }
 ///         cursor.insert_prev(to_insert);
 ///     }

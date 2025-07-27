@@ -10,6 +10,7 @@
 //! [`ListArc`]: crate::list::ListArc
 
 use core::cell::UnsafeCell;
+use safety_macro::safety;
 
 /// A field owned by a specific [`ListArc`].
 ///
@@ -44,10 +45,9 @@ impl<T, const ID: u64> ListArcField<T, ID> {
     ///
     /// The caller must have shared access to the `ListArc<ID>` containing the struct with this
     /// field for the duration of the returned reference.
-    #[safety::Memo(
-        UserProperty,
-        memo = "The caller must have shared access to T for the duration of the returned reference."
-    )]
+    #[safety { UserProperty:
+        "The caller must have shared access to T for the duration of the returned reference."
+    }]
     pub unsafe fn assert_ref(&self) -> &T {
         // SAFETY: The caller has shared access to the `ListArc`, so they also have shared access
         // to this field.
@@ -60,10 +60,9 @@ impl<T, const ID: u64> ListArcField<T, ID> {
     ///
     /// The caller must have mutable access to the `ListArc<ID>` containing the struct with this
     /// field for the duration of the returned reference.
-    #[safety::Memo(
-        UserProperty,
-        memo = "The caller must have mutable access to T for the duration of the returned mutable reference."
-    )]
+    #[safety { UserProperty:
+        "The caller must have mutable access to T for the duration of the returned mutable reference."
+    }]
     #[expect(clippy::mut_from_ref)]
     pub unsafe fn assert_mut(&self) -> &mut T {
         // SAFETY: The caller has exclusive access to the `ListArc`, so they also have exclusive

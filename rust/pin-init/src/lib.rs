@@ -289,6 +289,7 @@ use core::{
     pin::Pin,
     ptr::{self, NonNull},
 };
+use safety_macro::safety;
 
 #[doc(hidden)]
 pub mod __internal;
@@ -1103,8 +1104,7 @@ where
     I: PinInit<T, E>,
     F: FnOnce(Pin<&mut T>) -> Result<(), E>,
 {
-    #[safety::precond::Allocated(slot, T, 1, _)]
-    #[safety::hazard::Pinned(slot, _)]
+    #[safety { Allocated(slot, T, 1, _), Pinned(slot, _) }]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: All requirements fulfilled since this function is `__pinned_init`.
         unsafe { self.0.__pinned_init(slot)? };
@@ -1213,7 +1213,7 @@ where
     I: Init<T, E>,
     F: FnOnce(&mut T) -> Result<(), E>,
 {
-    #[safety::precond::Allocated(slot, T, 1, _)]
+    #[safety { Allocated(slot, T, 1, _) }]
     unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: All requirements fulfilled since this function is `__init`.
         unsafe { self.0.__pinned_init(slot)? };
@@ -1230,8 +1230,7 @@ where
     I: Init<T, E>,
     F: FnOnce(&mut T) -> Result<(), E>,
 {
-    #[safety::precond::Allocated(slot, T, 1, _)]
-    #[safety::hazard::Pinned(slot, _)]
+    #[safety { Allocated(slot, T, 1, _), Pinned(slot, _) }]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: `__init` has less strict requirements compared to `__pinned_init`.
         unsafe { self.__init(slot) }
@@ -1400,7 +1399,7 @@ where
 
 // SAFETY: Every type can be initialized by-value.
 unsafe impl<T, E> Init<T, E> for T {
-    #[safety::precond::Allocated(slot, T, 1, _)]
+    #[safety { Allocated(slot, T, 1, _) }]
     unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: TODO.
         unsafe { slot.write(self) };
@@ -1410,8 +1409,7 @@ unsafe impl<T, E> Init<T, E> for T {
 
 // SAFETY: Every type can be initialized by-value. `__pinned_init` calls `__init`.
 unsafe impl<T, E> PinInit<T, E> for T {
-    #[safety::precond::Allocated(slot, T, 1, _)]
-    #[safety::hazard::Pinned(slot, _)]
+    #[safety { Allocated(slot, T, 1, _), Pinned(slot, _) }]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: TODO.
         unsafe { self.__init(slot) }

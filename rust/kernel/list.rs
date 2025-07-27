@@ -10,6 +10,7 @@ use core::iter::{DoubleEndedIterator, FusedIterator};
 use core::marker::PhantomData;
 use core::ptr;
 use pin_init::PinInit;
+use safety_macro::safety;
 
 mod impl_list_item_mod;
 pub use self::impl_list_item_mod::{
@@ -286,7 +287,7 @@ impl<const ID: u64> ListLinks<ID> {
     /// # Safety
     ///
     /// `me` must be dereferenceable.
-    #[safety::precond::Typed(me, "ListLinks<ID>")]
+    #[safety { Typed(me, "ListLinks<ID>") }]
     #[inline]
     unsafe fn fields(me: *mut Self) -> *mut ListLinksFields {
         // SAFETY: The caller promises that the pointer is valid.
@@ -296,7 +297,7 @@ impl<const ID: u64> ListLinks<ID> {
     /// # Safety
     ///
     /// `me` must be dereferenceable.
-    #[safety::precond::Typed(me, "ListLinksFields")]
+    #[safety { Typed(me, "ListLinksFields") }]
     #[inline]
     unsafe fn from_fields(me: *mut ListLinksFields) -> *mut Self {
         me.cast()

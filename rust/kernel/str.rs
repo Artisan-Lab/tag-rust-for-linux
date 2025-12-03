@@ -12,7 +12,7 @@ use core::{
     marker::PhantomData,
     ops::{Deref, DerefMut, Index},
 };
-
+use safety_macro::safety;
 pub use crate::prelude::CStr;
 
 /// Byte string without UTF-8 validity guarantee.
@@ -317,12 +317,14 @@ unsafe fn to_bytes_mut(s: &mut CStr) -> &mut [u8] {
 
 impl CStrExt for CStr {
     #[inline]
+    #[safety{ValidCStr, Alive, NonMutate("Self", ptr)}]
     unsafe fn from_char_ptr<'a>(ptr: *const c_char) -> &'a Self {
         // SAFETY: The safety preconditions are the same as for `CStr::from_ptr`.
         unsafe { CStr::from_ptr(ptr.cast()) }
     }
 
     #[inline]
+    #[safety{ValidCStr}]
     unsafe fn from_bytes_with_nul_unchecked_mut(bytes: &mut [u8]) -> &mut Self {
         // SAFETY: the cast from `&[u8]` to `&CStr` is safe since the properties of `bytes` are
         // guaranteed by the safety precondition and `CStr` has the same layout as `&[u8]` (this is
@@ -543,6 +545,7 @@ impl RawFormatter {
     ///
     /// If `pos` is less than `end`, then the region between `pos` (inclusive) and `end`
     /// (exclusive) must be valid for writes for the lifetime of the returned [`RawFormatter`].
+    #[safety{ValidNum(end, "pos+some"), ValidWrite(pos, "end-pos")}]
     pub(crate) unsafe fn from_ptrs(pos: *mut u8, end: *mut u8) -> Self {
         // INVARIANT: The safety requirements guarantee the type invariants.
         Self {
@@ -558,6 +561,7 @@ impl RawFormatter {
     ///
     /// The memory region starting at `buf` and extending for `len` bytes must be valid for writes
     /// for the lifetime of the returned [`RawFormatter`].
+    #[safety{ValidWrite(buf, len)}]
     pub(crate) unsafe fn from_buffer(buf: *mut u8, len: usize) -> Self {
         let pos = buf as usize;
         // INVARIANT: We ensure that `end` is never less than `buf`, and the safety requirements
@@ -620,6 +624,7 @@ impl Formatter<'_> {
     ///
     /// The memory region starting at `buf` and extending for `len` bytes must be valid for writes
     /// for the lifetime of the returned [`Formatter`].
+    #[safety{ValidWrite(buf, len)}]
     pub(crate) unsafe fn from_buffer(buf: *mut u8, len: usize) -> Self {
         // SAFETY: The safety requirements of this function satisfy those of the callee.
         Self(unsafe { RawFormatter::from_buffer(buf, len) }, PhantomData)

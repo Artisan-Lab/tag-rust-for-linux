@@ -71,7 +71,7 @@ use super::{ClockSource, Delta, Instant};
 use crate::{prelude::*, types::Opaque};
 use core::{marker::PhantomData, ptr::NonNull};
 use pin_init::PinInit;
-
+use safety_macro::safety;
 /// A type-alias to refer to the [`Instant<C>`] for a given `T` from [`HrTimer<T>`].
 ///
 /// Where `C` is the [`ClockSource`] of the [`HrTimer`].
@@ -132,6 +132,7 @@ impl<T> HrTimer<T> {
     /// # Safety
     ///
     /// `this` must point to a live allocation of at least the size of `Self`.
+    #[safety{ValidMemory(this, size_of_Self)}]
     unsafe fn raw_get(this: *const Self) -> *mut bindings::hrtimer {
         // SAFETY: The field projection to `timer` does not go out of bounds,
         // because the caller of this function promises that `this` points to an
@@ -158,6 +159,7 @@ impl<T> HrTimer<T> {
     /// # Safety
     ///
     /// `this` must point to a valid `Self`.
+    #[safety{Typed(this, Self)}]
     pub(crate) unsafe fn raw_cancel(this: *const Self) -> bool {
         // SAFETY: `this` points to an allocation of at least `HrTimer` size.
         let c_timer_ptr = unsafe { HrTimer::raw_get(this) };

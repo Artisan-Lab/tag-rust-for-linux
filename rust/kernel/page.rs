@@ -15,7 +15,7 @@ use core::{
     ops::Deref,
     ptr::{self, NonNull},
 };
-
+use safety_macro::safety;
 /// A bitwise shift for the page size.
 pub const PAGE_SHIFT: usize = bindings::PAGE_SHIFT as usize;
 
@@ -262,6 +262,7 @@ impl Page {
     /// * Callers must ensure that `dst` is valid for writing `len` bytes.
     /// * Callers must ensure that this call does not race with a write to the same page that
     ///   overlaps with this read.
+    #[safety{ValidWrite(dst, len), NonData_race(&self)}]
     pub unsafe fn read_raw(&self, dst: *mut u8, offset: usize, len: usize) -> Result {
         self.with_pointer_into_page(offset, len, move |src| {
             // SAFETY: If `with_pointer_into_page` calls into this closure, then
@@ -284,6 +285,7 @@ impl Page {
     /// * Callers must ensure that `src` is valid for reading `len` bytes.
     /// * Callers must ensure that this call does not race with a read or write to the same page
     ///   that overlaps with this write.
+    #[safety{ValidRead(src, len), NonData_race(&self)}]
     pub unsafe fn write_raw(&self, src: *const u8, offset: usize, len: usize) -> Result {
         self.with_pointer_into_page(offset, len, move |dst| {
             // SAFETY: If `with_pointer_into_page` calls into this closure, then it has performed a
@@ -304,6 +306,7 @@ impl Page {
     ///
     /// Callers must ensure that this call does not race with a read or write to the same page that
     /// overlaps with this write.
+    #[safety{NonData_race(&self)}]
     pub unsafe fn fill_zero_raw(&self, offset: usize, len: usize) -> Result {
         self.with_pointer_into_page(offset, len, move |dst| {
             // SAFETY: If `with_pointer_into_page` calls into this closure, then it has performed a
@@ -327,6 +330,7 @@ impl Page {
     ///
     /// Callers must ensure that this call does not race with a read or write to the same page that
     /// overlaps with this write.
+    #[safety{NonData_race(&self)}]
     pub unsafe fn copy_from_user_slice_raw(
         &self,
         reader: &mut UserSliceReader,

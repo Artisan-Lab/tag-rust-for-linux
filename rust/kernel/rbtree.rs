@@ -13,7 +13,7 @@ use core::{
     mem::MaybeUninit,
     ptr::{addr_of_mut, from_mut, NonNull},
 };
-
+use safety_macro::safety;
 /// A red-black tree with owned nodes.
 ///
 /// It is backed by the kernel C red-black trees.
@@ -1034,6 +1034,7 @@ impl<'a, K, V> CursorMut<'a, K, V> {
     ///
     /// - `node` must be a valid pointer to a node in an [`RBTree`].
     /// - The caller has immutable access to `node` for the duration of `'b`.
+    #[safety{ValidPtr(node, bindings::rb_node, 1), Access(node, r#"(&'b K, &'b V)"#, Immutable)}]
     unsafe fn to_key_value<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, &'b V) {
         // SAFETY: the caller guarantees that `node` is a valid pointer in an `RBTree`.
         let (k, v) = unsafe { Self::to_key_value_raw(node) };
@@ -1045,6 +1046,7 @@ impl<'a, K, V> CursorMut<'a, K, V> {
     ///
     /// - `node` must be a valid pointer to a node in an [`RBTree`].
     /// - The caller has mutable access to `node` for the duration of `'b`.
+    #[safety{ValidPtr(node, bindings::rb_node, 1), Access(node, r#"(&'b K, &'b mut V)"#, Mutable)}]
     unsafe fn to_key_value_mut<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, &'b mut V) {
         // SAFETY: the caller guarantees that `node` is a valid pointer in an `RBTree`.
         let (k, v) = unsafe { Self::to_key_value_raw(node) };
@@ -1056,6 +1058,7 @@ impl<'a, K, V> CursorMut<'a, K, V> {
     ///
     /// - `node` must be a valid pointer to a node in an [`RBTree`].
     /// - The caller has immutable access to the key for the duration of `'b`.
+    #[safety{ValidPtr(node, bindings::rb_node, 1), Access(node, r#"(&'b K, *mut V)"#, Immutable)}]
     unsafe fn to_key_value_raw<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, *mut V) {
         // SAFETY: By the type invariant of `Self`, all non-null `rb_node` pointers stored in `self`
         // point to the links field of `Node<K, V>` objects.

@@ -12,7 +12,7 @@ use crate::{
     types::{ARef, AlwaysRefCounted, Opaque},
 };
 use core::{marker::PhantomData, ptr::NonNull};
-
+use safety_macro::safety;
 /// A wrapper around a blk-mq [`struct request`]. This represents an IO request.
 ///
 /// # Implementation details
@@ -65,6 +65,7 @@ impl<T: Operations> Request<T> {
     /// * The type invariants for [`Request`] must hold for the pointee of `ptr`.
     ///
     /// [`struct request`]: srctree/include/linux/blk-mq.h
+    #[safety{RefTransfer(ptr, "ARef"), Invariant(ptr)}]
     pub(crate) unsafe fn aref_from_raw(ptr: *mut bindings::request) -> ARef<Self> {
         // INVARIANT: By the safety requirements of this function, invariants are upheld.
         // SAFETY: By the safety requirement of this function, we own a
@@ -82,6 +83,7 @@ impl<T: Operations> Request<T> {
     ///
     /// The caller must have exclusive ownership of `self`, that is
     /// `self.wrapper_ref().refcount() == 2`.
+    #[safety{ValidNum("self.wrapper_ref().refcount()", 2)}]
     pub(crate) unsafe fn start_unchecked(this: &ARef<Self>) {
         // SAFETY: By type invariant, `self.0` is a valid `struct request` and
         // we have exclusive access.
@@ -162,6 +164,7 @@ impl<T: Operations> Request<T> {
     ///
     /// - `this` must point to a valid allocation of size at least size of
     ///   [`Self`] plus size of [`RequestDataWrapper`].
+    #[safety{ValidPtr}]
     pub(crate) unsafe fn wrapper_ptr(this: *mut Self) -> NonNull<RequestDataWrapper> {
         let request_ptr = this.cast::<bindings::request>();
         // SAFETY: By safety requirements for this function, `this` is a
@@ -209,6 +212,7 @@ impl RequestDataWrapper {
     /// # Safety
     ///
     /// - `this` must point to a live allocation of at least the size of `Self`.
+    #[safety{ValidPtr}]
     pub(crate) unsafe fn refcount_ptr(this: *mut Self) -> *mut Refcount {
         // SAFETY: Because of the safety requirements of this function, the
         // field projection is safe.

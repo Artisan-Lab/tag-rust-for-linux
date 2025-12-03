@@ -11,7 +11,7 @@ use core::marker::PhantomPinned;
 use core::ops::Deref;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicBool, Ordering};
-
+use safety_macro::safety;
 /// Declares that this type has some way to ensure that there is exactly one `ListArc` instance for
 /// this id.
 ///
@@ -323,6 +323,7 @@ where
     ///
     /// * The value must not already have a `ListArc` reference.
     /// * The tracking inside `T` must think that there is a `ListArc` reference.
+    #[safety{ NonExist(ListArc, arc), Think_Exist(ListArc, T)}]
     #[inline]
     unsafe fn transmute_from_arc(arc: Arc<T>) -> Self {
         // INVARIANT: By the safety requirements, the invariants on `ListArc` are satisfied.
@@ -358,6 +359,7 @@ where
     /// * The value must not already have a `ListArc` reference.
     /// * The tracking inside `T` must think that there is a `ListArc` reference.
     #[inline]
+    #[safety{CallOnce(), OriginateFrom(ptr,Arc::into_raw), NonExist(ListArc, ptr), Think_Exist(ListArc, T)}]
     pub unsafe fn from_raw(ptr: *const T) -> Self {
         // SAFETY: The pointer satisfies the safety requirements for `Arc::from_raw`.
         let arc = unsafe { Arc::from_raw(ptr) };

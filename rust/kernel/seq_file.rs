@@ -5,7 +5,7 @@
 //! C header: [`include/linux/seq_file.h`](srctree/include/linux/seq_file.h)
 
 use crate::{bindings, c_str, fmt, str::CStrExt as _, types::NotThreadSafe, types::Opaque};
-
+use safety_macro::safety;
 /// A utility for generating the contents of a seq file.
 #[repr(transparent)]
 pub struct SeqFile {
@@ -21,6 +21,7 @@ impl SeqFile {
     /// The caller must ensure that for the duration of `'a` the following is satisfied:
     /// * The pointer points at a valid `struct seq_file`.
     /// * The `struct seq_file` is not accessed from any other thread.
+    #[safety{Typed(ptr, bindings::seq_file), CurThread(SeqFile)}]
     pub unsafe fn from_raw<'a>(ptr: *mut bindings::seq_file) -> &'a SeqFile {
         // SAFETY: The caller ensures that the reference is valid for 'a. There's no way to trigger
         // a data race by using the `&SeqFile` since this is the only thread accessing the seq_file.

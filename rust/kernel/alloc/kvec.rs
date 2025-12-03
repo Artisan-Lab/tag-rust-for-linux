@@ -27,7 +27,7 @@ use core::{
 
 mod errors;
 pub use self::errors::{InsertError, PushError, RemoveError};
-
+use safety_macro::safety;
 /// Create a [`KVec`] containing the arguments.
 ///
 /// New memory is allocated with `GFP_KERNEL`.
@@ -198,6 +198,7 @@ where
     ///
     /// - `additional` must be less than or equal to `self.capacity - self.len`.
     /// - All elements within the interval [`self.len`,`self.len + additional`) must be initialized.
+    #[safety{Init, ValidNum}]
     #[inline]
     pub const unsafe fn inc_len(&mut self, additional: usize) {
         // Guaranteed by the type invariant to never underflow.
@@ -215,6 +216,7 @@ where
     /// # Safety
     ///
     /// - `count` must be less than or equal to `self.len`.
+    #[safety{ValidNum}]
     unsafe fn dec_len(&mut self, count: usize) -> &mut [T] {
         debug_assert!(count <= self.len());
         // INVARIANT: We relinquish ownership of the elements within the range `[self.len - count,
@@ -360,6 +362,7 @@ where
     /// # Safety
     ///
     /// The length must be less than the capacity.
+    #[safety{ValidNum}]   
     unsafe fn push_within_capacity_unchecked(&mut self, v: T) {
         let spare = self.spare_capacity_mut();
 
@@ -547,6 +550,7 @@ where
     ///
     /// It is also valid to create an empty `Vec` passing a dangling pointer for `ptr` and zero for
     /// `cap` and `len`.
+    #[safety{Allocated, ValidPtr, Align, Init, ValidNum(allocated-size, 0..=isize::MAX), ValidNum(length, 0..=capacity)}]
     pub unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
         let layout = if Self::is_zst() {
             ArrayLayout::empty()

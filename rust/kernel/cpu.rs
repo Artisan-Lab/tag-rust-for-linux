@@ -5,7 +5,7 @@
 //! C header: [`include/linux/cpu.h`](srctree/include/linux/cpu.h)
 
 use crate::{bindings, device::Device, error::Result, prelude::ENODEV};
-
+use safety_macro::safety;
 /// Returns the maximum number of possible CPUs in the current system configuration.
 #[inline]
 pub fn nr_cpu_ids() -> u32 {
@@ -52,6 +52,7 @@ impl CpuId {
     /// # Safety
     ///
     /// The caller must ensure that `id` is a valid CPU ID (i.e., `0 <= id < nr_cpu_ids()`).
+    #[safety{ValidNum}]
     #[inline]
     pub unsafe fn from_i32_unchecked(id: i32) -> Self {
         debug_assert!(id >= 0);
@@ -76,6 +77,7 @@ impl CpuId {
     /// # Safety
     ///
     /// The caller must ensure that `id` is a valid CPU ID (i.e., `0 <= id < nr_cpu_ids()`).
+    #[safety{ValidNum}]
     #[inline]
     pub unsafe fn from_u32_unchecked(id: u32) -> Self {
         debug_assert!(id < nr_cpu_ids());
@@ -139,6 +141,7 @@ impl From<CpuId> for i32 {
 /// Callers must ensure that the CPU device is not used after it has been unregistered.
 /// This can be achieved, for example, by registering a CPU hotplug notifier and removing
 /// any references to the CPU device within the notifier's callback.
+#[safety{MayInvalid(Device)}]
 pub unsafe fn from_cpu(cpu: CpuId) -> Result<&'static Device> {
     // SAFETY: It is safe to call `get_cpu_device()` for any CPU.
     let ptr = unsafe { bindings::get_cpu_device(u32::from(cpu)) };

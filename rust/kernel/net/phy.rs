@@ -8,7 +8,7 @@
 
 use crate::{device_id::RawDeviceId, error::*, prelude::*, types::Opaque};
 use core::{marker::PhantomData, ptr::addr_of_mut};
-
+use safety_macro::safety;
 pub mod reg;
 
 /// PHY state machine states.
@@ -83,6 +83,7 @@ impl Device {
     ///   must be in a context where all methods defined on this struct
     ///   are safe to call.
     /// - `(*ptr).mdio.dev` must be a valid.
+    #[safety{Typed(ptr, phy_device), ValidInstance("(*ptr).mdio.dev")}]
     unsafe fn from_raw<'a>(ptr: *mut bindings::phy_device) -> &'a mut Self {
         // CAST: `Self` is a `repr(transparent)` wrapper around `bindings::phy_device`.
         let ptr = ptr.cast::<Self>();
@@ -309,6 +310,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, soft_reset)}]
     unsafe extern "C" fn soft_reset_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
@@ -323,6 +325,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, probe)}]
     unsafe extern "C" fn probe_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
@@ -338,6 +341,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, get_features)}]
     unsafe extern "C" fn get_features_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
@@ -352,6 +356,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, suspend)}]
     unsafe extern "C" fn suspend_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: The C core code ensures that the accessors on
@@ -366,6 +371,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, resume)}]
     unsafe extern "C" fn resume_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: The C core code ensures that the accessors on
@@ -380,6 +386,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, config_aneg)}]
     unsafe extern "C" fn config_aneg_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
@@ -394,6 +401,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, read_status)}]
     unsafe extern "C" fn read_status_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
@@ -408,6 +416,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, match_phy_device)}]
     unsafe extern "C" fn match_phy_device_callback(
         phydev: *mut bindings::phy_device,
         _phydrv: *const bindings::phy_driver,
@@ -422,6 +431,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, read_mmd)}]
     unsafe extern "C" fn read_mmd_callback(
         phydev: *mut bindings::phy_device,
         devnum: i32,
@@ -441,6 +451,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, write_mmd)}]
     unsafe extern "C" fn write_mmd_callback(
         phydev: *mut bindings::phy_device,
         devnum: i32,
@@ -460,6 +471,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
+    #[safety{OriginateFrom(phydev, link_change_notify)}]
     unsafe extern "C" fn link_change_notify_callback(phydev: *mut bindings::phy_device) {
         // SAFETY: This callback is called only in contexts
         // where we hold `phy_device->lock`, so the accessors on

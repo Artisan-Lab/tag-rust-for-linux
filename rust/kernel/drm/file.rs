@@ -7,7 +7,7 @@
 use crate::{bindings, drm, error::Result, prelude::*, types::Opaque};
 use core::marker::PhantomData;
 use core::pin::Pin;
-
+use safety_macro::safety;
 /// Trait that must be implemented by DRM drivers to represent a DRM File (a client instance).
 pub trait DriverFile {
     /// The parent `Driver` implementation for this `DriverFile`.
@@ -32,6 +32,7 @@ impl<T: DriverFile> File<T> {
     /// # Safety
     ///
     /// `raw_file` must be a valid pointer to an open `struct drm_file`, opened through `T::open`.
+    #[safety{Typed(ptr, bindings::drm_file), PostToFunc(open)}]
     pub unsafe fn from_raw<'a>(ptr: *mut bindings::drm_file) -> &'a File<T> {
         // SAFETY: `raw_file` is valid by the safety requirements of this function.
         unsafe { &*ptr.cast() }

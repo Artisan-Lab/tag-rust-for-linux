@@ -13,7 +13,7 @@ use crate::{
     types::{ARef, ForeignOwnable},
 };
 use core::marker::PhantomData;
-
+use safety_macro::safety;
 type ForeignBorrowed<'a, T> = <T as ForeignOwnable>::Borrowed<'a>;
 
 /// Implement this trait to interface blk-mq as block devices.
@@ -82,6 +82,7 @@ impl<T: Operations> OperationsVTable<T> {
     /// - `(*bd).rq` must be owned by the driver. That is, the block layer must
     ///   promise to not access the request until the driver calls
     ///   `bindings::blk_mq_end_request` for the request.
+    #[safety{ValidRead(bd, some), Init, Owning}]
     unsafe extern "C" fn queue_rq_callback(
         hctx: *mut bindings::blk_mq_hw_ctx,
         bd: *const bindings::blk_mq_queue_data,
@@ -135,6 +136,7 @@ impl<T: Operations> OperationsVTable<T> {
     ///
     /// This function may only be called by blk-mq C infrastructure. The caller
     /// must ensure that `hctx` is valid.
+    #[safety{CalledBy(blk-mq-C-infrastructure), ValidInstance(hctx)}]
     unsafe extern "C" fn commit_rqs_callback(hctx: *mut bindings::blk_mq_hw_ctx) {
         // SAFETY: `hctx` is valid as required by this function.
         let queue_data = unsafe { (*(*hctx).queue).queuedata };
@@ -155,6 +157,7 @@ impl<T: Operations> OperationsVTable<T> {
     /// This function may only be called by blk-mq C infrastructure. `rq` must
     /// point to a valid request that has been marked as completed. The pointee
     /// of `rq` must be valid for write for the duration of this function.
+    #[safety{CalledBy(blk-mq-C-infrastructure), ValidInstance(rq), ValidWrite(rq, "some bytes")}]
     unsafe extern "C" fn complete_callback(rq: *mut bindings::request) {
         // SAFETY: This function can only be dispatched through
         // `Request::complete`. We leaked a refcount then which we pick back up
@@ -169,6 +172,7 @@ impl<T: Operations> OperationsVTable<T> {
     /// # Safety
     ///
     /// This function may only be called by blk-mq C infrastructure.
+    #[safety{CalledBy(blk-mq-C-infrastructure)}]
     unsafe extern "C" fn poll_callback(
         _hctx: *mut bindings::blk_mq_hw_ctx,
         _iob: *mut bindings::io_comp_batch,
@@ -184,6 +188,7 @@ impl<T: Operations> OperationsVTable<T> {
     /// This function may only be called by blk-mq C infrastructure. This
     /// function may only be called once before `exit_hctx_callback` is called
     /// for the same context.
+    #[safety{CalledBy(blk-mq-C-infrastructure), CallOnce:"This function may only be called once before `exit_hctx_callback` is called for the same context."}]
     unsafe extern "C" fn init_hctx_callback(
         _hctx: *mut bindings::blk_mq_hw_ctx,
         _tagset_data: *mut crate::ffi::c_void,
@@ -198,6 +203,7 @@ impl<T: Operations> OperationsVTable<T> {
     /// # Safety
     ///
     /// This function may only be called by blk-mq C infrastructure.
+    #[safety{CalledBy(blk-mq-C-infrastructure)}]
     unsafe extern "C" fn exit_hctx_callback(
         _hctx: *mut bindings::blk_mq_hw_ctx,
         _hctx_idx: crate::ffi::c_uint,
@@ -214,6 +220,7 @@ impl<T: Operations> OperationsVTable<T> {
     /// - `rq` must point to an initialized `bindings::request`.
     /// - The allocation pointed to by `rq` must be at the size of `Request`
     ///   plus the size of `RequestDataWrapper`.
+    #[safety{CalledBy(blk-mq-C-infrastructure), Init(_set, "TagSet<T>", 1), Init(rq, "bindings:request", 1), ValidMemory(rq, "sizeof(Request)+sizeof(RequestDataWrapper)")}]
     unsafe extern "C" fn init_request_callback(
         _set: *mut bindings::blk_mq_tag_set,
         rq: *mut bindings::request,
@@ -241,6 +248,7 @@ impl<T: Operations> OperationsVTable<T> {
     /// - This function may only be called by blk-mq C infrastructure.
     /// - `_set` must point to an initialized `TagSet<T>`.
     /// - `rq` must point to an initialized and valid `Request`.
+    #[safety{CalledBy(blk-mq-C-infrastructure), Init, ValidPtr}]
     unsafe extern "C" fn exit_request_callback(
         _set: *mut bindings::blk_mq_tag_set,
         rq: *mut bindings::request,

@@ -15,7 +15,7 @@ use crate::{
     types::Opaque,
 };
 use core::{alloc::Layout, mem, ops::Deref, ptr, ptr::NonNull};
-
+use safety_macro::safety;
 #[cfg(CONFIG_DRM_LEGACY)]
 macro_rules! drm_legacy_fields {
     ( $($field:ident: $val:expr),* $(,)? ) => {
@@ -142,6 +142,7 @@ impl<T: drm::Driver> Device<T> {
     /// # Safety
     ///
     /// `ptr` must be a valid pointer to a `struct device` embedded in `Self`.
+    #[safety{ValidPtr, ContainerOf(ptr, Self, dev)}]  
     unsafe fn from_drm_device(ptr: *const bindings::drm_device) -> *mut Self {
         // SAFETY: By the safety requirements of this function `ptr` is a valid pointer to a
         // `struct drm_device` embedded in `Self`.
@@ -168,6 +169,7 @@ impl<T: drm::Driver> Device<T> {
     /// Additionally, callers must ensure that the `struct device`, `ptr` is pointing to, is
     /// embedded in `Self`.
     #[doc(hidden)]
+    #[safety{ValidPtr(ptr, bindings::drm_device, 1), NonNull(ptr), NonZero(reference, function-call), ContainerOf(ptr, Self, dev)}]
     pub unsafe fn from_raw<'a>(ptr: *const bindings::drm_device) -> &'a Self {
         // SAFETY: By the safety requirements of this function `ptr` is a valid pointer to a
         // `struct drm_device` embedded in `Self`.

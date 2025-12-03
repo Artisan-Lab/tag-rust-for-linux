@@ -17,6 +17,7 @@ use core::{
     ops::Deref,
     ptr,
 };
+use safety_macro::safety;
 
 /// A sentinel value used for infinite timeouts.
 pub const MAX_SCHEDULE_TIMEOUT: c_long = c_long::MAX;
@@ -175,6 +176,7 @@ impl Task {
     /// within the task context that was active when this function was called. For more details,
     /// see the invariants section for [`CurrentTask`].
     #[inline]
+    #[safety{ActiveContext("CurrentTask")}]
     pub unsafe fn current() -> impl Deref<Target = CurrentTask> {
         struct TaskRef {
             task: *const CurrentTask,

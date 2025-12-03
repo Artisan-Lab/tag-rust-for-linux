@@ -195,7 +195,7 @@ use crate::{
     types::Opaque,
 };
 use core::marker::PhantomData;
-
+use safety_macro::safety;
 /// Creates a [`Work`] initialiser with the given name and a newly-created lock class.
 #[macro_export]
 macro_rules! new_work {
@@ -253,6 +253,7 @@ impl Queue {
     ///
     /// The caller must ensure that the provided raw pointer is not dangling, that it points at a
     /// valid workqueue, and that it remains valid until the end of `'a`.
+    #[safety{Typed(ptr, bindings::workqueue_struct)}]
     pub unsafe fn from_raw<'a>(ptr: *const bindings::workqueue_struct) -> &'a Queue {
         // SAFETY: The `Queue` type is `#[repr(transparent)]`, so the pointer cast is valid. The
         // caller promises that the pointer is not dangling.
@@ -523,6 +524,7 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
     /// The provided pointer must not be dangling and must be properly aligned. (But the memory
     /// need not be initialized.)
     #[inline]
+    #[safety{ValidPtr, Align}]
     pub unsafe fn raw_get(ptr: *const Self) -> *mut bindings::work_struct {
         // SAFETY: The caller promises that the pointer is aligned and not dangling.
         //

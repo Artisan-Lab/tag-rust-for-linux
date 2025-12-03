@@ -35,7 +35,7 @@ use core::{
     ptr::NonNull,
 };
 use pin_init::{self, pin_data, InPlaceWrite, Init, PinInit};
-
+use safety_macro::safety;
 mod std_vendor;
 
 /// A reference-counted pointer to an instance of `T`.
@@ -156,6 +156,7 @@ impl<T: ?Sized> ArcInner<T> {
     ///
     /// `ptr` must have been returned by a previous call to [`Arc::into_raw`], and the `Arc` must
     /// not yet have been destroyed.
+    #[safety{OriginateFrom(ptr, Arc::into_raw), ValidInstance(Arc)}]
     unsafe fn container_of(ptr: *const T) -> NonNull<ArcInner<T>> {
         let refcount_layout = Layout::new::<Refcount>();
         // SAFETY: The caller guarantees that the pointer is valid.
@@ -249,6 +250,7 @@ impl<T: ?Sized> Arc<T> {
     ///
     /// The caller must ensure that `inner` points to a valid location and has a non-zero reference
     /// count, one of which will be owned by the new [`Arc`] instance.
+    #[safety{ValidInstance(inner), NonZero(refcount, Self)}]
     unsafe fn from_inner(inner: NonNull<ArcInner<T>>) -> Self {
         // INVARIANT: By the safety requirements, the invariants hold.
         Arc {
@@ -282,6 +284,7 @@ impl<T: ?Sized> Arc<T> {
     ///
     /// `ptr` must have been returned by a previous call to [`Arc::into_raw`]. Additionally, it
     /// must not be called more than once for each previous call to [`Arc::into_raw`].
+    #[safety{OriginateFrom(ptr, Arc::into_raw), CallOnce()}]
     pub unsafe fn from_raw(ptr: *const T) -> Self {
         // SAFETY: The caller promises that this pointer originates from a call to `into_raw` on an
         // `Arc` that is still valid.
@@ -574,6 +577,7 @@ impl<T: ?Sized> ArcBorrow<'_, T> {
     /// Callers must ensure the following for the lifetime of the returned [`ArcBorrow`] instance:
     /// 1. That `inner` remains valid;
     /// 2. That no mutable references to `inner` are created.
+    #[safety{ValidInstance(inner), NonMutRef(inner)}]
     unsafe fn new(inner: NonNull<ArcInner<T>>) -> Self {
         // INVARIANT: The safety requirements guarantee the invariants.
         Self {
@@ -592,6 +596,7 @@ impl<T: ?Sized> ArcBorrow<'_, T> {
     ///   not hit zero.
     /// * For the duration of the lifetime annotated on this `ArcBorrow`, there must not be a
     ///   [`UniqueArc`] reference to this value.
+    #[safety{OriginateFrom(ptr, "Arc::into_raw|Arc::as_ptr"), NonZero(refcount, Self), NonInstance(UniqueArc, "\'a")}]
     pub unsafe fn from_raw(ptr: *const T) -> Self {
         // SAFETY: The caller promises that this pointer originates from a call to `into_raw` on an
         // `Arc` that is still valid.
@@ -786,6 +791,7 @@ impl<T> UniqueArc<MaybeUninit<T>> {
     ///
     /// The caller guarantees that the value behind this pointer has been initialized. It is
     /// *immediate* UB to call this when the value is not initialized.
+    #[safety{Init}]
     pub unsafe fn assume_init(self) -> UniqueArc<T> {
         let inner = ManuallyDrop::new(self).inner.ptr;
         UniqueArc {

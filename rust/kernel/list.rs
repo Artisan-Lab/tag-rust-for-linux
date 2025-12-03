@@ -22,6 +22,7 @@ pub use self::arc::{impl_list_arc_safe, AtomicTracker, ListArc, ListArcSafe, Try
 mod arc_field;
 pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 
+
 /// A linked list.
 ///
 /// All elements in this linked list will be [`ListArc`] references to the value. Since a value can
@@ -398,6 +399,7 @@ impl<const ID: u64> ListLinks<ID> {
     /// # Safety
     ///
     /// `me` must be dereferenceable.
+    #[safety{ Typed(me, "ListLinks<ID>") }]
     #[inline]
     unsafe fn fields(me: *mut Self) -> *mut ListLinksFields {
         // SAFETY: The caller promises that the pointer is valid.
@@ -407,6 +409,7 @@ impl<const ID: u64> ListLinks<ID> {
     /// # Safety
     ///
     /// `me` must be dereferenceable.
+    #[safety{ Typed(me, "ListLinksFields") }]
     #[inline]
     unsafe fn from_fields(me: *mut ListLinksFields) -> *mut Self {
         me.cast()
@@ -486,6 +489,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     ///
     /// * `next` must be an element in this list or null.
     /// * if `next` is null, then the list must be empty.
+    #[safety{InList(self, item), Empty(self), Null(next)}]
     unsafe fn insert_inner(
         &mut self,
         item: ListArc<T, ID>,
@@ -579,6 +583,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     /// # Safety
     ///
     /// `item` must not be in a different linked list (with the same id).
+    #[safety{NonInList(otherList, item)}]
     pub unsafe fn remove(&mut self, item: &T) -> Option<ListArc<T, ID>> {
         // SAFETY: TODO.
         let mut item = unsafe { ListLinks::fields(T::view_links(item)) };
@@ -620,6 +625,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     /// # Safety
     ///
     /// `item` must point at an item in this list.
+    #[safety{InList(self, item)}]
     unsafe fn remove_internal(&mut self, item: *mut ListLinksFields) -> ListArc<T, ID> {
         // SAFETY: The caller promises that this pointer is not dangling, and there's no data race
         // since we have a mutable reference to the list containing `item`.
@@ -634,6 +640,8 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     ///
     /// The `item` pointer must point at an item in this list, and we must have `(*item).next ==
     /// next` and `(*item).prev == prev`.
+    // seems no need to abstract, it is a specific usage
+    #[safety{InList(self, item), Equal(r#"*(*item).next"#, next), Equal(r#"*(*item).prev"#, prev)}]
     unsafe fn remove_internal_inner(
         &mut self,
         item: *mut ListLinksFields,

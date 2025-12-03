@@ -5,7 +5,7 @@
 //! Custom layout types extending or improving [`Layout`].
 
 use core::{alloc::Layout, marker::PhantomData};
-
+use safety_macro::safety;
 /// Error when constructing an [`ArrayLayout`].
 pub struct LayoutError;
 
@@ -80,6 +80,7 @@ impl<T> ArrayLayout<T> {
     /// # Safety
     ///
     /// `len` must be a value, for which `len * size_of::<T>() <= isize::MAX` is true.
+    #[safety{ValidNum(r#"len * size_of::<T>()"#, "0..=isize::MAX")}]
     pub const unsafe fn new_unchecked(len: usize) -> Self {
         // INVARIANT: By the safety requirements of this function
         // `len * size_of::<T>() <= isize::MAX`.

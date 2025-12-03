@@ -15,6 +15,7 @@ use crate::{
 use core::num::NonZeroI32;
 use core::num::TryFromIntError;
 use core::str::Utf8Error;
+use safety_macro::safety;
 
 /// Contains the C-compatible error codes.
 #[rustfmt::skip]
@@ -150,6 +151,7 @@ impl Error {
     /// # Safety
     ///
     /// `errno` must be within error code range (i.e. `>= -MAX_ERRNO && < 0`).
+    #[safety{ValidNum}]
     const unsafe fn from_errno_unchecked(errno: crate::ffi::c_int) -> Error {
         // INVARIANT: The contract ensures the type invariant
         // will hold.

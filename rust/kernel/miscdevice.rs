@@ -21,7 +21,7 @@ use crate::{
     types::{ForeignOwnable, Opaque},
 };
 use core::{marker::PhantomData, mem::MaybeUninit, pin::Pin};
-
+use safety_macro::safety;
 /// Options for creating a misc device.
 #[derive(Copy, Clone)]
 pub struct MiscDeviceOptions {
@@ -201,6 +201,7 @@ impl<T: MiscDevice> MiscdeviceVTable<T> {
     ///
     /// `file` and `inode` must be the file and inode for a file that is undergoing initialization.
     /// The file must be associated with a `MiscDeviceRegistration<T>`.
+    #[safety{ValidInstance(raw_file), ValidInstance(inode), Associated(file, "MiscDeviceRegistration<T>")}]
     unsafe extern "C" fn open(inode: *mut bindings::inode, raw_file: *mut bindings::file) -> c_int {
         // SAFETY: The pointers are valid and for a file being opened.
         let ret = unsafe { bindings::generic_file_open(inode, raw_file) };
@@ -242,6 +243,7 @@ impl<T: MiscDevice> MiscdeviceVTable<T> {
     ///
     /// `file` and `inode` must be the file and inode for a file that is being released. The file
     /// must be associated with a `MiscDeviceRegistration<T>`.
+    #[safety{ValidInstance(file), ValidInstance(inode), Associated(file, "MiscDeviceRegistration<T>")}]
     unsafe extern "C" fn release(_inode: *mut bindings::inode, file: *mut bindings::file) -> c_int {
         // SAFETY: The release call of a file owns the private data.
         let private = unsafe { (*file).private_data };
@@ -300,6 +302,7 @@ impl<T: MiscDevice> MiscdeviceVTable<T> {
     ///
     /// `file` must be a valid file that is associated with a `MiscDeviceRegistration<T>`.
     /// `vma` must be a vma that is currently being mmap'ed with this file.
+    #[safety{Associated(file, "MiscDeviceRegistration<T>"), ValidVma(vma, _)}]
     unsafe extern "C" fn mmap(
         file: *mut bindings::file,
         vma: *mut bindings::vm_area_struct,
@@ -326,6 +329,7 @@ impl<T: MiscDevice> MiscdeviceVTable<T> {
     /// # Safety
     ///
     /// `file` must be a valid file that is associated with a `MiscDeviceRegistration<T>`.
+    #[safety{Associated(file, "MiscDeviceRegistration<T>")}]
     unsafe extern "C" fn ioctl(file: *mut bindings::file, cmd: c_uint, arg: c_ulong) -> c_long {
         // SAFETY: The ioctl call of a file can access the private data.
         let private = unsafe { (*file).private_data };
@@ -347,6 +351,7 @@ impl<T: MiscDevice> MiscdeviceVTable<T> {
     ///
     /// `file` must be a valid file that is associated with a `MiscDeviceRegistration<T>`.
     #[cfg(CONFIG_COMPAT)]
+    #[safety{Associated(file, "MiscDeviceRegistration<T>")}]
     unsafe extern "C" fn compat_ioctl(
         file: *mut bindings::file,
         cmd: c_uint,
@@ -372,6 +377,7 @@ impl<T: MiscDevice> MiscdeviceVTable<T> {
     ///
     /// - `file` must be a valid file that is associated with a `MiscDeviceRegistration<T>`.
     /// - `seq_file` must be a valid `struct seq_file` that we can write to.
+    #[safety{Associated(file, "MiscDeviceRegistration<T>"), ValidFile(seq_file), ValidWrite(seq_file, some)}]
     unsafe extern "C" fn show_fdinfo(seq_file: *mut bindings::seq_file, file: *mut bindings::file) {
         // SAFETY: The release call of a file owns the private data.
         let private = unsafe { (*file).private_data };

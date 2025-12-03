@@ -44,6 +44,7 @@ impl<T, const ID: u64> ListArcField<T, ID> {
     ///
     /// The caller must have shared access to the `ListArc<ID>` containing the struct with this
     /// field for the duration of the returned reference.
+    #[safety{Access("ListArc<ID>", "returned reference", "shared")}]
     pub unsafe fn assert_ref(&self) -> &T {
         // SAFETY: The caller has shared access to the `ListArc`, so they also have shared access
         // to this field.
@@ -56,6 +57,7 @@ impl<T, const ID: u64> ListArcField<T, ID> {
     ///
     /// The caller must have mutable access to the `ListArc<ID>` containing the struct with this
     /// field for the duration of the returned reference.
+    #[safety{Access("ListArc<ID>", "returned reference", "mutable")}]
     #[expect(clippy::mut_from_ref)]
     pub unsafe fn assert_mut(&self) -> &mut T {
         // SAFETY: The caller has exclusive access to the `ListArc`, so they also have exclusive

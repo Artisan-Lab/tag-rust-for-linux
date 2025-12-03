@@ -18,7 +18,7 @@ pub mod spinlock;
 
 pub(super) mod global;
 pub use global::{GlobalGuard, GlobalLock, GlobalLockBackend, GlobalLockedBy};
-
+use safety_macro::safety;
 /// The "backend" of a lock.
 ///
 /// It is the actual implementation of the lock, without the need to repeat patterns used in all
@@ -151,6 +151,7 @@ impl<B: Backend> Lock<(), B> {
     /// the whole lifetime of `'a`.
     ///
     /// [`State`]: Backend::State
+    #[safety{Init}]
     pub unsafe fn from_raw<'a>(ptr: *mut B::State) -> &'a Self {
         // SAFETY:
         // - By the safety contract `ptr` must point to a valid initialised instance of `B::State`
@@ -271,6 +272,7 @@ impl<'a, T: ?Sized, B: Backend> Guard<'a, T, B> {
     /// # Safety
     ///
     /// The caller must ensure that it owns the lock.
+    #[safety{LockHold(lock, "\'a")}]
     pub unsafe fn new(lock: &'a Lock<T, B>, state: B::GuardState) -> Self {
         // SAFETY: The caller can only hold the lock if `Backend::init` has already been called.
         unsafe { B::assert_is_held(lock.state.get()) };

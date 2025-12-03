@@ -12,7 +12,7 @@ use crate::{
     sync::aref::ARef,
     transmute::{AsBytes, FromBytes},
 };
-
+use safety_macro::safety;
 /// DMA address type.
 ///
 /// Represents a bus address used for Direct Memory Access (DMA) operations.
@@ -588,6 +588,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     ///
     /// Public but hidden since it should only be used from [`dma_read`] macro.
     #[doc(hidden)]
+    #[safety{CalledBy(dma_read_macro)}]
     pub unsafe fn field_read<F: FromBytes>(&self, field: *const F) -> F {
         // SAFETY:
         // - By the safety requirements field is valid.
@@ -611,6 +612,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     ///
     /// Public but hidden since it should only be used from [`dma_write`] macro.
     #[doc(hidden)]
+    #[safety{CalledBy(dma_write_macro)}]
     pub unsafe fn field_write<F: AsBytes>(&self, field: *mut F, val: F) {
         // SAFETY:
         // - By the safety requirements field is valid.

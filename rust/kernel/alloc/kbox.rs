@@ -21,7 +21,7 @@ use crate::init::InPlaceInit;
 use crate::page::AsPageIter;
 use crate::types::ForeignOwnable;
 use pin_init::{InPlaceWrite, Init, PinInit, ZeroableOption};
-
+use safety_macro::safety;
 /// The kernel's [`Box`] type -- a heap allocation for a single value of type `T`.
 ///
 /// This is the kernel's version of the Rust stdlib's `Box`. There are several differences,
@@ -175,6 +175,7 @@ where
     /// `Box`.
     ///
     /// For ZSTs, `raw` must be a dangling, well aligned pointer.
+    #[safety{ValidPtr, Allocated, Align}]
     #[inline]
     pub const unsafe fn from_raw(raw: *mut T) -> Self {
         // INVARIANT: Validity of `raw` is guaranteed by the safety preconditions of this function.
@@ -227,6 +228,7 @@ where
     /// # Safety
     ///
     /// Callers must ensure that the value inside of `b` is in an initialized state.
+    #[safety{Init}]
     pub unsafe fn assume_init(self) -> Box<T, A> {
         let raw = Self::into_raw(self);
 

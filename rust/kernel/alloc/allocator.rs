@@ -16,7 +16,7 @@ use core::ptr::NonNull;
 use crate::alloc::{AllocError, Allocator, NumaNode};
 use crate::bindings;
 use crate::page;
-
+use safety_macro::safety;
 const ARCH_KMALLOC_MINALIGN: usize = bindings::ARCH_KMALLOC_MINALIGN;
 
 mod iter;
@@ -80,6 +80,7 @@ impl ReallocFunc {
     /// This method has the same guarantees as `Allocator::realloc`. Additionally
     /// - it accepts any pointer to a valid memory allocation allocated by this function.
     /// - memory allocated by this function remains valid until it is passed to this function.
+    #[safety{Allocated, Layout}]
     #[inline]
     unsafe fn call(
         &self,

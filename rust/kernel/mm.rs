@@ -17,7 +17,7 @@ use crate::{
     types::{NotThreadSafe, Opaque},
 };
 use core::{ops::Deref, ptr::NonNull};
-
+use safety_macro::safety;
 pub mod virt;
 use virt::VmaRef;
 
@@ -129,6 +129,7 @@ impl Mm {
     ///
     /// The caller must ensure that `ptr` points at an `mm_struct`, and that it is not deallocated
     /// during the lifetime 'a.
+    #[safety{Typed(ptr, mm_struct), Alive}]
     #[inline]
     pub unsafe fn from_raw<'a>(ptr: *const bindings::mm_struct) -> &'a Mm {
         // SAFETY: Caller promises that the pointer is valid for 'a. Layouts are compatible due to
@@ -159,6 +160,7 @@ impl MmWithUser {
     ///
     /// The caller must ensure that `ptr` points at an `mm_struct`, and that `mm_users` remains
     /// non-zero for the duration of the lifetime 'a.
+    #[safety{Typed(ptr, mm_struct), NonZero(mm_users, a)}]
     #[inline]
     pub unsafe fn from_raw<'a>(ptr: *const bindings::mm_struct) -> &'a MmWithUser {
         // SAFETY: Caller promises that the pointer is valid for 'a. The layout is compatible due

@@ -12,7 +12,7 @@ use crate::{
     prelude::*,
     str::RawFormatter,
 };
-
+use safety_macro::safety;
 // Called from `vsprintf` with format specifier `%pA`.
 #[expect(clippy::missing_safety_doc)]
 #[export]
@@ -97,6 +97,7 @@ pub mod format_strings {
 /// [`_printk`]: srctree/include/linux/_printk.h
 #[doc(hidden)]
 #[cfg_attr(not(CONFIG_PRINTK), allow(unused_variables))]
+#[safety{ValidInstance(format_string), ValidCStr(module_name)}]
 pub unsafe fn call_printk(
     format_string: &[u8; format_strings::LENGTH],
     module_name: &[u8],

@@ -19,7 +19,7 @@ use crate::{
     sync::aref::{ARef, AlwaysRefCounted},
     types::Opaque,
 };
-
+use safety_macro::safety;
 #[cfg(CONFIG_CPU_FREQ)]
 /// Frequency table implementation.
 mod freq {
@@ -618,6 +618,7 @@ impl Table {
     /// # Safety
     ///
     /// Callers must ensure that `ptr` is valid and non-null.
+    #[safety{ValidPtr(ptr, bindings::opp_table, 1), NonNull(ptr)}]
     unsafe fn from_raw_table(ptr: *mut bindings::opp_table, dev: &ARef<Device>) -> Self {
         // SAFETY: By the safety requirements, ptr is valid and its refcount will be incremented.
         //
@@ -1061,6 +1062,7 @@ impl OPP {
     /// The caller must also ensure that it doesn't explicitly drop the refcount of the [`OPP`], as
     /// the returned [`ARef`] object takes over the refcount increment on the underlying object and
     /// the same will be dropped along with it.
+    #[safety{ValidPtr::"the pointer is valid and the refcount of OPP is incremented", RefTransfer(ptr, ARef)}]
     pub unsafe fn from_raw_opp_owned(ptr: *mut bindings::dev_pm_opp) -> Result<ARef<Self>> {
         let ptr = ptr::NonNull::new(ptr).ok_or(ENODEV)?;
 
@@ -1079,6 +1081,7 @@ impl OPP {
     ///
     /// The caller must ensure that `ptr` is valid and remains valid for the duration of `'a`.
     #[inline]
+    #[safety{ValidPtr::"the pointer is valid and remains valid for the duration of 'a"}]
     pub unsafe fn from_raw_opp<'a>(ptr: *mut bindings::dev_pm_opp) -> Result<&'a Self> {
         // SAFETY: The caller guarantees that the pointer is not dangling and stays valid for the
         // duration of 'a. The cast is okay because [`OPP`] is `repr(transparent)`.

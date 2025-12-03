@@ -14,7 +14,7 @@ use core::{
     ptr::drop_in_place,
     sync::atomic::{AtomicBool, Ordering},
 };
-
+use safety_macro::safety;
 /// An object that can become inaccessible at runtime.
 ///
 /// Once access is revoked and all concurrent users complete (i.e., all existing instances of
@@ -156,6 +156,7 @@ impl<T> Revocable<T> {
     /// # Safety
     ///
     /// Callers must ensure that there are no more concurrent users of the revocable object.
+    #[safety{NonConCurrent(self)}]
     unsafe fn revoke_internal<const SYNC: bool>(&self) -> bool {
         let revoke = self.is_available.swap(false, Ordering::Relaxed);
 
@@ -184,6 +185,7 @@ impl<T> Revocable<T> {
     /// # Safety
     ///
     /// Callers must ensure that there are no more concurrent users of the revocable object.
+    #[safety{NonConCurrent(self)}]
     pub unsafe fn revoke_nosync(&self) -> bool {
         // SAFETY: By the safety requirement of this function, the caller ensures that nobody is
         // accessing the data anymore and hence we don't have to wait for the grace period to

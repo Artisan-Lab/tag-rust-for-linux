@@ -15,6 +15,7 @@ use crate::{
 use core::ptr::{self, NonNull};
 
 use core::ops::{Deref, DerefMut};
+use safety_macro::safety;
 
 /// A CPU Mask.
 ///
@@ -55,6 +56,7 @@ impl Cpumask {
     ///
     /// The caller must ensure that `ptr` is valid for writing and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidWrite(ptr, "some"), Alive(ptr, "\'a")}]
     pub unsafe fn as_mut_ref<'a>(ptr: *mut bindings::cpumask) -> &'a mut Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //
@@ -69,6 +71,7 @@ impl Cpumask {
     ///
     /// The caller must ensure that `ptr` is valid for reading and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidRead(ptr, "some"), Alive(ptr, "\'a")}]
     pub unsafe fn as_ref<'a>(ptr: *const bindings::cpumask) -> &'a Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //
@@ -247,6 +250,7 @@ impl CpumaskVar {
     ///
     /// The caller must ensure that the returned [`CpumaskVar`] is properly initialized before
     /// getting used.
+    #[safety{Init}]
     pub unsafe fn new(_flags: Flags) -> Result<Self, AllocError> {
         Ok(Self {
             #[cfg(CONFIG_CPUMASK_OFFSTACK)]
@@ -271,6 +275,7 @@ impl CpumaskVar {
     ///
     /// The caller must ensure that `ptr` is valid for writing and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidWrite(ptr, "some"), Alive(ptr, "\'a")}]
     pub unsafe fn from_raw_mut<'a>(ptr: *mut bindings::cpumask_var_t) -> &'a mut Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //
@@ -285,6 +290,7 @@ impl CpumaskVar {
     ///
     /// The caller must ensure that `ptr` is valid for reading and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidRead(ptr, "some"), Alive(ptr, "\'a")}]
     pub unsafe fn from_raw<'a>(ptr: *const bindings::cpumask_var_t) -> &'a Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //

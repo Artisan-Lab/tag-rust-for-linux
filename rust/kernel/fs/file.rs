@@ -16,7 +16,7 @@ use crate::{
     types::{NotThreadSafe, Opaque},
 };
 use core::ptr;
-
+use safety_macro::safety;
 /// Flags associated with a [`File`].
 pub mod flags {
     /// File is opened in append mode.
@@ -275,6 +275,7 @@ impl LocalFile {
     /// * The caller must ensure that if there is an active call to `fdget_pos` that did not take
     ///   the `f_pos_lock` mutex, then that call is on the current thread.
     #[inline]
+    #[safety{ValidFile(ptr), NonZero(r#"file's refcount"#, r#"'a"#), CurThread(fdget_pos)}]
     pub unsafe fn from_raw_file<'a>(ptr: *const bindings::file) -> &'a LocalFile {
         // SAFETY: The caller guarantees that the pointer is not dangling and stays valid for the
         // duration of `'a`. The cast is okay because `LocalFile` is `repr(transparent)`.
@@ -298,6 +299,7 @@ impl LocalFile {
     ///
     /// There must not be any active `fdget_pos` calls on the current thread.
     #[inline]
+    #[safety{CallOnce}]
     pub unsafe fn assume_no_fdget_pos(me: ARef<LocalFile>) -> ARef<File> {
         // INVARIANT: There are no `fdget_pos` calls on the current thread, and by the type
         // invariants, if there is a `fdget_pos` call on another thread, then it took the
@@ -349,6 +351,7 @@ impl File {
     /// * The caller must ensure that if there are active `fdget_pos` calls on this file, then they
     ///   took the `f_pos_lock` mutex.
     #[inline]
+    #[safety{ValidFile(ptr), NonZero(r#"file's refcount"#, r#"'a"#), LockHold(f_pos_lock, fdget_pos)}]
     pub unsafe fn from_raw_file<'a>(ptr: *const bindings::file) -> &'a File {
         // SAFETY: The caller guarantees that the pointer is not dangling and stays valid for the
         // duration of `'a`. The cast is okay because `File` is `repr(transparent)`.

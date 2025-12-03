@@ -23,7 +23,7 @@ use crate::{
 };
 
 use core::ops::Deref;
-
+use safety_macro::safety;
 /// A wrapper for the kernel's `struct vm_area_struct` with read access.
 ///
 /// It represents an area of virtual memory.
@@ -45,6 +45,7 @@ impl VmaRef {
     ///
     /// Callers must ensure that `vma` is valid for the duration of 'a, and that the mmap or vma
     /// read lock (or stronger) is held for at least the duration of 'a.
+    #[safety{ValidVma(vma, a), LockHold(mmap-or-vma_read, a)}]
     #[inline]
     pub unsafe fn from_raw<'a>(vma: *const bindings::vm_area_struct) -> &'a Self {
         // SAFETY: The caller ensures that the invariants are satisfied for the duration of 'a.
@@ -181,6 +182,7 @@ impl VmaMixedMap {
     ///
     /// Callers must ensure that `vma` is valid for the duration of 'a, and that the mmap read lock
     /// (or stronger) is held for at least the duration of 'a. The `VM_MIXEDMAP` flag must be set.
+    #[safety{ValidVma(vma, a), LockHold(mmap-read, a), FlagSet(VM_MIXEDMAP)}]
     #[inline]
     pub unsafe fn from_raw<'a>(vma: *const bindings::vm_area_struct) -> &'a Self {
         // SAFETY: The caller ensures that the invariants are satisfied for the duration of 'a.
@@ -230,6 +232,7 @@ impl VmaNew {
     /// # Safety
     ///
     /// Callers must ensure that `vma` is undergoing initial vma setup for the duration of 'a.
+    #[safety{Init(vma, biding::vm_area_struct, 1)}]
     #[inline]
     pub unsafe fn from_raw<'a>(vma: *mut bindings::vm_area_struct) -> &'a Self {
         // SAFETY: The caller ensures that the invariants are satisfied for the duration of 'a.
@@ -241,6 +244,7 @@ impl VmaNew {
     /// # Safety
     ///
     /// This must not be used to set the flags to an invalid value.
+    #[safety{ValidNum}]
     #[inline]
     unsafe fn update_flags(&self, set: vm_flags_t, unset: vm_flags_t) {
         let mut flags = self.flags();

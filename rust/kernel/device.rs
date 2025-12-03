@@ -14,7 +14,7 @@ use core::{marker::PhantomData, ptr};
 #[cfg(CONFIG_PRINTK)]
 use crate::c_str;
 use crate::str::CStrExt as _;
-
+use safety_macro::safety;
 pub mod property;
 
 /// The core representation of a device in the kernel's driver model.
@@ -172,6 +172,7 @@ impl Device {
     ///
     /// It must also be ensured that `bindings::device::release` can be called from any thread.
     /// While not officially documented, this should be the case for any `struct device`.
+    #[safety{ValidPtr(ptr, bindings::device, 1), NonNull(ptr), NonZero(reference, function-call), AnyThread(get_device)}]
     pub unsafe fn get_device(ptr: *mut bindings::device) -> ARef<Self> {
         // SAFETY: By the safety requirements ptr is valid
         unsafe { Self::from_raw(ptr) }.into()
@@ -277,6 +278,7 @@ impl<Ctx: DeviceContext> Device<Ctx> {
     /// i.e. it must be ensured that the reference count of the C `struct device` `ptr` points to
     /// can't drop to zero, for the duration of this function call and the entire duration when the
     /// returned reference exists.
+    #[safety{ValidPtr(ptr, bindings::device, 1), NonNull(ptr), NonZero(reference, function-call)}]
     pub unsafe fn from_raw<'a>(ptr: *mut bindings::device) -> &'a Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         unsafe { &*ptr.cast() }
@@ -371,6 +373,7 @@ impl<Ctx: DeviceContext> Device<Ctx> {
     /// Callers must ensure that `klevel` is null-terminated; in particular, one of the
     /// `KERN_*`constants, for example, `KERN_CRIT`, `KERN_ALERT`, etc.
     #[cfg_attr(not(CONFIG_PRINTK), allow(unused_variables))]
+    #[safety{ValidCStr}]
     unsafe fn printk(&self, klevel: &[u8], msg: fmt::Arguments<'_>) {
         // SAFETY: `klevel` is null-terminated and one of the kernel constants. `self.as_raw`
         // is valid because `self` is valid. The "%pA" format string expects a pointer to

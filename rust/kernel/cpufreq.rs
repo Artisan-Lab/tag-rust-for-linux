@@ -33,6 +33,7 @@ use core::{
 };
 
 use macros::vtable;
+use safety_macro::safety;
 
 /// Maximum length of CPU frequency driver's name.
 const CPUFREQ_NAME_LEN: usize = bindings::CPUFREQ_NAME_LEN as usize;
@@ -136,6 +137,7 @@ impl PolicyData {
     ///
     /// The caller must ensure that `ptr` is valid for writing and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidWrite(ptr, "some"), Alive(ptr, "\'a")}]
     #[inline]
     pub unsafe fn from_raw_mut<'a>(ptr: *mut bindings::cpufreq_policy_data) -> &'a mut Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
@@ -177,6 +179,7 @@ impl TableIndex {
     ///
     /// The caller must ensure that `index` correspond to a valid entry in the [`Table`] it is used
     /// for.
+    #[safety{ValidNum}]
     pub unsafe fn new(index: usize) -> Self {
         // INVARIANT: The caller ensures that `index` correspond to a valid entry in the [`Table`].
         Self(index)
@@ -230,6 +233,7 @@ impl Table {
     ///
     /// The caller must ensure that `ptr` is valid for reading and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidRead(ptr, "some"), Alive(ptr, "\'a")}]
     #[inline]
     pub unsafe fn from_raw<'a>(ptr: *const bindings::cpufreq_frequency_table) -> &'a Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
@@ -420,6 +424,7 @@ impl Policy {
     ///
     /// The caller must ensure that `ptr` is valid for reading and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidRead(ptr, "some"), Alive(ptr, "\'a")}]
     #[inline]
     pub unsafe fn from_raw<'a>(ptr: *const bindings::cpufreq_policy) -> &'a Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
@@ -435,6 +440,7 @@ impl Policy {
     ///
     /// The caller must ensure that `ptr` is valid for writing and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidWrite(ptr, "some"), Alive(ptr, "\'a")}]
     #[inline]
     pub unsafe fn from_raw_mut<'a>(ptr: *mut bindings::cpufreq_policy) -> &'a mut Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
@@ -551,6 +557,7 @@ impl Policy {
     ///
     /// The caller must guarantee that the returned [`Clk`] is not dropped while it is getting used
     /// by the C code.
+    #[safety{NonDropped(clk, "used by the C code")}]
     #[cfg(CONFIG_COMMON_CLK)]
     pub unsafe fn set_clk(&mut self, dev: &Device, name: Option<&CStr>) -> Result<Clk> {
         let clk = Clk::get(dev, name)?;
@@ -624,6 +631,7 @@ impl Policy {
     ///
     /// The caller must guarantee that the [`Table`] is not dropped while it is getting used by the
     /// C code.
+    #[safety{NonDropped(table, "used by the C code")}]
     #[inline]
     pub unsafe fn set_freq_table(&mut self, table: &Table) -> &mut Self {
         self.as_mut_ref().freq_table = table.as_raw();
@@ -1062,6 +1070,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn init_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
@@ -1080,6 +1089,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn exit_callback(ptr: *mut bindings::cpufreq_policy) {
         // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
         // lifetime of `policy`.
@@ -1095,6 +1105,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn online_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
@@ -1110,6 +1121,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn offline_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
@@ -1125,6 +1137,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn suspend_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
@@ -1140,6 +1153,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn resume_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
@@ -1155,6 +1169,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn ready_callback(ptr: *mut bindings::cpufreq_policy) {
         // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
         // lifetime of `policy`.
@@ -1168,6 +1183,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn verify_callback(ptr: *mut bindings::cpufreq_policy_data) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
@@ -1183,6 +1199,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn setpolicy_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
@@ -1198,6 +1215,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn target_callback(
         ptr: *mut bindings::cpufreq_policy,
         target_freq: c_uint,
@@ -1217,6 +1235,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn target_index_callback(
         ptr: *mut bindings::cpufreq_policy,
         index: c_uint,
@@ -1240,6 +1259,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn fast_switch_callback(
         ptr: *mut bindings::cpufreq_policy,
         target_freq: c_uint,
@@ -1255,6 +1275,7 @@ impl<T: Driver> Registration<T> {
     /// # Safety
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
+    #[safety{CalledBy("cpufreq C infrastructure")}]
     unsafe extern "C" fn adjust_perf_callback(
         cpu: c_uint,
         min_perf: c_ulong,
@@ -1275,6 +1296,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn get_intermediate_callback(
         ptr: *mut bindings::cpufreq_policy,
         index: c_uint,
@@ -1296,6 +1318,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn target_intermediate_callback(
         ptr: *mut bindings::cpufreq_policy,
         index: c_uint,
@@ -1318,6 +1341,7 @@ impl<T: Driver> Registration<T> {
     /// # Safety
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
+    #[safety{CalledBy("cpufreq C infrastructure")}]
     unsafe extern "C" fn get_callback(cpu: c_uint) -> c_uint {
         // SAFETY: The C API guarantees that `cpu` refers to a valid CPU number.
         let cpu_id = unsafe { CpuId::from_u32_unchecked(cpu) };
@@ -1331,6 +1355,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn update_limits_callback(ptr: *mut bindings::cpufreq_policy) {
         // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
         // lifetime of `policy`.
@@ -1344,6 +1369,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn bios_limit_callback(cpu: c_int, limit: *mut c_uint) -> c_int {
         // SAFETY: The C API guarantees that `cpu` refers to a valid CPU number.
         let cpu_id = unsafe { CpuId::from_i32_unchecked(cpu) };
@@ -1362,6 +1388,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn set_boost_callback(
         ptr: *mut bindings::cpufreq_policy,
         state: c_int,
@@ -1380,6 +1407,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
+    #[safety{CalledBy("cpufreq C infrastructure"), ValidPtr}]
     unsafe extern "C" fn register_em_callback(ptr: *mut bindings::cpufreq_policy) {
         // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
         // lifetime of `policy`.

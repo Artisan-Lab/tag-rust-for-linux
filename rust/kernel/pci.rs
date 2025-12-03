@@ -23,7 +23,7 @@ use core::{
     ptr::{addr_of_mut, NonNull},
 };
 use kernel::prelude::*;
-
+use safety_macro::safety;
 mod id;
 
 pub use self::id::{Class, ClassMask, Vendor};
@@ -371,6 +371,7 @@ impl<const SIZE: usize> Bar<SIZE> {
     /// # Safety
     ///
     /// `ioptr` must be a valid pointer to the memory mapped PCI bar number `num`.
+    #[safety{ValidPtr}]
     unsafe fn do_release(pdev: &Device, ioptr: usize, num: i32) {
         // SAFETY:
         // `pdev` is valid by the invariants of `Device`.

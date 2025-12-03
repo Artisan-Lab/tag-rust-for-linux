@@ -11,7 +11,7 @@ use crate::{
     sync::{CondVar, LockClassKey},
 };
 use core::{marker::PhantomData, ops::Deref};
-
+use safety_macro::safety;
 /// Creates a [`PollCondVar`] initialiser with the given name and a newly-created lock class.
 #[macro_export]
 macro_rules! new_poll_condvar {
@@ -39,6 +39,7 @@ impl<'a> PollTable<'a> {
     /// # Safety
     ///
     /// The pointer must be null or reference a valid `poll_table` for the duration of `'a`.
+    #[safety{ValidPtr, Owning}]
     pub unsafe fn from_raw(table: *mut bindings::poll_table) -> Self {
         // INVARIANTS: The safety requirements are the same as the struct invariants.
         PollTable {

@@ -15,7 +15,7 @@ use core::{
     marker::{PhantomData, PhantomPinned},
     pin::Pin,
 };
-
+use safety_macro::safety;
 /// Trait implemented for marker types for global locks.
 ///
 /// See [`global_lock!`] for examples.
@@ -44,6 +44,7 @@ impl<B: GlobalLockBackend> GlobalLock<B> {
     ///
     /// * Before any other method on this lock is called, [`Self::init`] must be called.
     /// * The type `B` must not be used with any other lock.
+    #[safety{NonUsed(B)}]
     pub const unsafe fn new(data: B::Item) -> Self {
         Self {
             inner: Lock {
@@ -59,6 +60,7 @@ impl<B: GlobalLockBackend> GlobalLock<B> {
     /// # Safety
     ///
     /// Must not be called more than once on a given lock.
+    #[safety{CallOnce()}]
     pub unsafe fn init(&'static self) {
         // SAFETY: The pointer to `state` is valid for the duration of this call, and both `name`
         // and `key` are valid indefinitely. The `state` is pinned since we have a `'static`

@@ -1276,6 +1276,7 @@ pub const unsafe fn init_from_closure<T: ?Sized, E>(
 ///
 /// - `*mut U` must be castable to `*mut T` and any value of type `T` written through such a
 ///   pointer must result in a valid `U`.
+#[safety{ValidCast(U, T)}]
 #[expect(clippy::let_and_return)]
 pub const unsafe fn cast_pin_init<T, U, E>(init: impl PinInit<T, E>) -> impl PinInit<U, E> {
     // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety
@@ -1292,6 +1293,7 @@ pub const unsafe fn cast_pin_init<T, U, E>(init: impl PinInit<T, E>) -> impl Pin
 ///
 /// - `*mut U` must be castable to `*mut T` and any value of type `T` written through such a
 ///   pointer must result in a valid `U`.
+#[safety{ValidCast(U, T)}]
 #[expect(clippy::let_and_return)]
 pub const unsafe fn cast_init<T, U, E>(init: impl Init<T, E>) -> impl Init<U, E> {
     // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety

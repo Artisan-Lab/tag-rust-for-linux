@@ -10,6 +10,7 @@
 //! [`ListArc`]: crate::list::ListArc
 
 use core::cell::UnsafeCell;
+use safety_macro::safety;
 
 /// A field owned by a specific [`ListArc`].
 ///

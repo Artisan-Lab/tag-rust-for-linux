@@ -325,7 +325,7 @@ rust_allowed_features := asm_const,asm_goto,arbitrary_self_types,lint_reasons,of
 rust_common_cmd = \
 	OBJTREE=$(abspath $(objtree)) \
 	RUST_MODFILE=$(modfile) $(RUSTC_OR_CLIPPY) $(rust_flags) \
-	-Zallow-features=$(rust_allowed_features) \
+	-Zallow-features=$(rust_allowed_features),register_tool \
 	-Zcrate-attr=no_std \
 	-Zcrate-attr='feature($(rust_allowed_features))' \
 	-Zunstable-options --extern pin_init --extern kernel \

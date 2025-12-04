@@ -6,6 +6,12 @@
 
 use crate::error::{code::EINVAL, Result};
 use crate::{bindings, build_assert, ffi::c_void};
+use  safety_macro::safety;
+pub mod mem;
+pub mod poll;
+pub mod resource;
+
+pub use resource::Resource;
 
 /// Raw representation of an MMIO region.
 ///
@@ -173,6 +179,7 @@ impl<const SIZE: usize> Io<SIZE> {
     ///
     /// Callers must ensure that `addr` is the start of a valid I/O mapped memory region of size
     /// `maxsize`.
+    #[safety{ValidMemory(addr, maxsize)}]
     pub unsafe fn from_raw(raw: &IoRaw<SIZE>) -> &Self {
         // SAFETY: `Io` is a transparent wrapper around `IoRaw`.
         unsafe { &*core::ptr::from_ref(raw).cast() }

@@ -14,10 +14,8 @@ use crate::{
 #[cfg(CONFIG_CPUMASK_OFFSTACK)]
 use core::ptr::{self, NonNull};
 
-#[cfg(not(CONFIG_CPUMASK_OFFSTACK))]
-use core::mem::MaybeUninit;
-
 use core::ops::{Deref, DerefMut};
+use safety_macro::safety;
 
 /// A CPU Mask.
 ///
@@ -58,6 +56,7 @@ impl Cpumask {
     ///
     /// The caller must ensure that `ptr` is valid for writing and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidWrite(ptr, "some"), Alive(ptr, "\'a")}]
     pub unsafe fn as_mut_ref<'a>(ptr: *mut bindings::cpumask) -> &'a mut Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //
@@ -72,6 +71,7 @@ impl Cpumask {
     ///
     /// The caller must ensure that `ptr` is valid for reading and remains valid for the lifetime
     /// of the returned reference.
+    #[safety{ValidRead(ptr, "some"), Alive(ptr, "\'a")}]
     pub unsafe fn as_ref<'a>(ptr: *const bindings::cpumask) -> &'a Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //
@@ -215,6 +215,7 @@ impl Cpumask {
 /// }
 /// assert_eq!(mask2.weight(), count);
 /// ```
+#[repr(transparent)]
 pub struct CpumaskVar {
     #[cfg(CONFIG_CPUMASK_OFFSTACK)]
     ptr: NonNull<Cpumask>,
@@ -239,10 +240,7 @@ impl CpumaskVar {
             },
 
             #[cfg(not(CONFIG_CPUMASK_OFFSTACK))]
-            // SAFETY: FFI type is valid to be zero-initialized.
-            //
-            // INVARIANT: The associated memory is freed when the `CpumaskVar` goes out of scope.
-            mask: unsafe { core::mem::zeroed() },
+            mask: Cpumask(Opaque::zeroed()),
         })
     }
 
@@ -252,6 +250,7 @@ impl CpumaskVar {
     ///
     /// The caller must ensure that the returned [`CpumaskVar`] is properly initialized before
     /// getting used.
+    #[safety{Init}]
     pub unsafe fn new(_flags: Flags) -> Result<Self, AllocError> {
         Ok(Self {
             #[cfg(CONFIG_CPUMASK_OFFSTACK)]
@@ -266,10 +265,7 @@ impl CpumaskVar {
                 NonNull::new(ptr.cast()).ok_or(AllocError)?
             },
             #[cfg(not(CONFIG_CPUMASK_OFFSTACK))]
-            // SAFETY: Guaranteed by the safety requirements of the function.
-            //
-            // INVARIANT: The associated memory is freed when the `CpumaskVar` goes out of scope.
-            mask: unsafe { MaybeUninit::uninit().assume_init() },
+            mask: Cpumask(Opaque::uninit()),
         })
     }
 
@@ -279,7 +275,8 @@ impl CpumaskVar {
     ///
     /// The caller must ensure that `ptr` is valid for writing and remains valid for the lifetime
     /// of the returned reference.
-    pub unsafe fn as_mut_ref<'a>(ptr: *mut bindings::cpumask_var_t) -> &'a mut Self {
+    #[safety{ValidWrite(ptr, "some"), Alive(ptr, "\'a")}]
+    pub unsafe fn from_raw_mut<'a>(ptr: *mut bindings::cpumask_var_t) -> &'a mut Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //
         // INVARIANT: The caller ensures that `ptr` is valid for writing and remains valid for the
@@ -293,7 +290,8 @@ impl CpumaskVar {
     ///
     /// The caller must ensure that `ptr` is valid for reading and remains valid for the lifetime
     /// of the returned reference.
-    pub unsafe fn as_ref<'a>(ptr: *const bindings::cpumask_var_t) -> &'a Self {
+    #[safety{ValidRead(ptr, "some"), Alive(ptr, "\'a")}]
+    pub unsafe fn from_raw<'a>(ptr: *const bindings::cpumask_var_t) -> &'a Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //
         // INVARIANT: The caller ensures that `ptr` is valid for reading and remains valid for the

@@ -23,6 +23,7 @@ pub use self::arc::{impl_list_arc_safe, AtomicTracker, ListArc, ListArcSafe, Try
 mod arc_field;
 pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 
+
 /// A linked list.
 ///
 /// All elements in this linked list will be [`ListArc`] references to the value. Since a value can
@@ -38,6 +39,8 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///   exclusive access to the `ListLinks` field.
 ///
 /// # Examples
+///
+/// Use [`ListLinks`] as the type of the intrusive field.
 ///
 /// ```
 /// use kernel::list::*;
@@ -58,14 +61,11 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///     }
 /// }
 ///
-/// impl_has_list_links! {
-///     impl HasListLinks<0> for BasicItem { self.links }
-/// }
 /// impl_list_arc_safe! {
 ///     impl ListArcSafe<0> for BasicItem { untracked; }
 /// }
 /// impl_list_item! {
-///     impl ListItem<0> for BasicItem { using ListLinks; }
+///     impl ListItem<0> for BasicItem { using ListLinks { self.links }; }
 /// }
 ///
 /// // Create a new empty list.
@@ -139,6 +139,124 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 15);
 ///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 25);
 ///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 35);
+///     assert!(iter.next().is_none());
+///     assert!(list2.is_empty());
+/// }
+/// # Result::<(), Error>::Ok(())
+/// ```
+///
+/// Use [`ListLinksSelfPtr`] as the type of the intrusive field. This allows a list of trait object
+/// type.
+///
+/// ```
+/// use kernel::list::*;
+///
+/// trait Foo {
+///     fn foo(&self) -> (&'static str, i32);
+/// }
+///
+/// #[pin_data]
+/// struct DTWrap<T: ?Sized> {
+///     #[pin]
+///     links: ListLinksSelfPtr<DTWrap<dyn Foo>>,
+///     value: T,
+/// }
+///
+/// impl<T> DTWrap<T> {
+///     fn new(value: T) -> Result<ListArc<Self>> {
+///         ListArc::pin_init(try_pin_init!(Self {
+///             value,
+///             links <- ListLinksSelfPtr::new(),
+///         }), GFP_KERNEL)
+///     }
+/// }
+///
+/// impl_list_arc_safe! {
+///     impl{T: ?Sized} ListArcSafe<0> for DTWrap<T> { untracked; }
+/// }
+/// impl_list_item! {
+///     impl ListItem<0> for DTWrap<dyn Foo> { using ListLinksSelfPtr { self.links }; }
+/// }
+///
+/// // Create a new empty list.
+/// let mut list = List::<DTWrap<dyn Foo>>::new();
+/// {
+///     assert!(list.is_empty());
+/// }
+///
+/// struct A(i32);
+/// // `A` returns the inner value for `foo`.
+/// impl Foo for A { fn foo(&self) -> (&'static str, i32) { ("a", self.0) } }
+///
+/// struct B;
+/// // `B` always returns 42.
+/// impl Foo for B { fn foo(&self) -> (&'static str, i32) { ("b", 42) } }
+///
+/// // Insert 3 element using `push_back()`.
+/// list.push_back(DTWrap::new(A(15))?);
+/// list.push_back(DTWrap::new(A(32))?);
+/// list.push_back(DTWrap::new(B)?);
+///
+/// // Iterate over the list to verify the nodes were inserted correctly.
+/// // [A(15), A(32), B]
+/// {
+///     let mut iter = list.iter();
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value.foo(), ("a", 15));
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value.foo(), ("a", 32));
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value.foo(), ("b", 42));
+///     assert!(iter.next().is_none());
+///
+///     // Verify the length of the list.
+///     assert_eq!(list.iter().count(), 3);
+/// }
+///
+/// // Pop the items from the list using `pop_back()` and verify the content.
+/// {
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value.foo(), ("b", 42));
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value.foo(), ("a", 32));
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value.foo(), ("a", 15));
+/// }
+///
+/// // Insert 3 elements using `push_front()`.
+/// list.push_front(DTWrap::new(A(15))?);
+/// list.push_front(DTWrap::new(A(32))?);
+/// list.push_front(DTWrap::new(B)?);
+///
+/// // Iterate over the list to verify the nodes were inserted correctly.
+/// // [B, A(32), A(15)]
+/// {
+///     let mut iter = list.iter();
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value.foo(), ("b", 42));
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value.foo(), ("a", 32));
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value.foo(), ("a", 15));
+///     assert!(iter.next().is_none());
+///
+///     // Verify the length of the list.
+///     assert_eq!(list.iter().count(), 3);
+/// }
+///
+/// // Pop the items from the list using `pop_front()` and verify the content.
+/// {
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value.foo(), ("a", 15));
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value.foo(), ("a", 32));
+/// }
+///
+/// // Push `list2` to `list` through `push_all_back()`.
+/// // list: [B]
+/// // list2: [B, A(25)]
+/// {
+///     let mut list2 = List::<DTWrap<dyn Foo>>::new();
+///     list2.push_back(DTWrap::new(B)?);
+///     list2.push_back(DTWrap::new(A(25))?);
+///
+///     list.push_all_back(&mut list2);
+///
+///     // list: [B, B, A(25)]
+///     // list2: []
+///     let mut iter = list.iter();
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value.foo(), ("b", 42));
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value.foo(), ("b", 42));
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value.foo(), ("a", 25));
 ///     assert!(iter.next().is_none());
 ///     assert!(list2.is_empty());
 /// }
@@ -291,7 +409,7 @@ impl<const ID: u64> ListLinks<ID> {
     #[inline]
     unsafe fn fields(me: *mut Self) -> *mut ListLinksFields {
         // SAFETY: The caller promises that the pointer is valid.
-        unsafe { Opaque::raw_get(ptr::addr_of!((*me).inner)) }
+        unsafe { Opaque::cast_into(ptr::addr_of!((*me).inner)) }
     }
 
     /// # Safety
@@ -328,9 +446,6 @@ unsafe impl<T: ?Sized + Send, const ID: u64> Send for ListLinksSelfPtr<T, ID> {}
 unsafe impl<T: ?Sized + Sync, const ID: u64> Sync for ListLinksSelfPtr<T, ID> {}
 
 impl<T: ?Sized, const ID: u64> ListLinksSelfPtr<T, ID> {
-    /// The offset from the [`ListLinks`] to the self pointer field.
-    pub const LIST_LINKS_SELF_PTR_OFFSET: usize = core::mem::offset_of!(Self, self_ptr);
-
     /// Creates a new initializer for this type.
     pub fn new() -> impl PinInit<Self> {
         // INVARIANT: Pin-init initializers can't be used on an existing `Arc`, so this value will
@@ -344,6 +459,16 @@ impl<T: ?Sized, const ID: u64> ListLinksSelfPtr<T, ID> {
             },
             self_ptr: Opaque::uninit(),
         }
+    }
+
+    /// Returns a pointer to the self pointer.
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must point at a valid struct of type `Self`.
+    pub unsafe fn raw_get_self_ptr(me: *const Self) -> *const Opaque<*const T> {
+        // SAFETY: The caller promises that the pointer is valid.
+        unsafe { ptr::addr_of!((*me).self_ptr) }
     }
 }
 
@@ -370,7 +495,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     ///
     /// * `next` must be an element in this list or null.
     /// * if `next` is null, then the list must be empty.
-    // seems no need to abstract, it is a specific usage
+    #[safety{InList(self, item), Empty(self), Null(next)}]
     unsafe fn insert_inner(
         &mut self,
         item: ListArc<T, ID>,
@@ -464,6 +589,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     /// # Safety
     ///
     /// `item` must not be in a different linked list (with the same id).
+    #[safety{NonInList(otherList, item)}]
     pub unsafe fn remove(&mut self, item: &T) -> Option<ListArc<T, ID>> {
         // SAFETY: TODO.
         let mut item = unsafe { ListLinks::fields(T::view_links(item)) };
@@ -505,6 +631,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     /// # Safety
     ///
     /// `item` must point at an item in this list.
+    #[safety{InList(self, item)}]
     unsafe fn remove_internal(&mut self, item: *mut ListLinksFields) -> ListArc<T, ID> {
         // SAFETY: The caller promises that this pointer is not dangling, and there's no data race
         // since we have a mutable reference to the list containing `item`.
@@ -520,6 +647,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     /// The `item` pointer must point at an item in this list, and we must have `(*item).next ==
     /// next` and `(*item).prev == prev`.
     // seems no need to abstract, it is a specific usage
+    #[safety{InList(self, item), Equal(r#"*(*item).next"#, next), Equal(r#"*(*item).prev"#, prev)}]
     unsafe fn remove_internal_inner(
         &mut self,
         item: *mut ListLinksFields,
@@ -721,14 +849,11 @@ impl<'a, T: ?Sized + ListItem<ID>, const ID: u64> Iterator for Iter<'a, T, ID> {
 ///     }
 /// }
 ///
-/// kernel::list::impl_has_list_links! {
-///     impl HasListLinks<0> for ListItem { self.links }
-/// }
 /// kernel::list::impl_list_arc_safe! {
 ///     impl ListArcSafe<0> for ListItem { untracked; }
 /// }
 /// kernel::list::impl_list_item! {
-///     impl ListItem<0> for ListItem { using ListLinks; }
+///     impl ListItem<0> for ListItem { using ListLinks { self.links }; }
 /// }
 ///
 /// // Use a cursor to remove the first element with the given value.

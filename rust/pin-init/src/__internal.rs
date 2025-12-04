@@ -6,7 +6,7 @@
 //! `../internal`.
 
 use super::*;
-
+use safety_macro::safety;
 /// See the [nomicon] for what subtyping is. See also [this table].
 ///
 /// The reason for not using `PhantomData<*mut T>` is that that type never implements [`Send`] and
@@ -188,6 +188,7 @@ impl<T> StackInit<T> {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn stack_init_reuse() {
     use ::std::{borrow::ToOwned, println, string::String};
     use core::pin::pin;
@@ -232,6 +233,7 @@ impl<T: ?Sized> DropGuard<T> {
     /// - has not been dropped,
     /// - is not accessible by any other means,
     /// - will not be dropped by any other means.
+    #[safety{ValidPtr}]
     #[inline]
     pub unsafe fn new(ptr: *mut T) -> Self {
         Self { ptr }

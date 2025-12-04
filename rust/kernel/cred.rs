@@ -8,12 +8,8 @@
 //!
 //! Reference: <https://www.kernel.org/doc/html/latest/security/credentials.html>
 
-use crate::{
-    bindings,
-    task::Kuid,
-    types::{AlwaysRefCounted, Opaque},
-};
-
+use crate::{bindings, sync::aref::AlwaysRefCounted, task::Kuid, types::Opaque};
+use safety_macro::safety;
 /// Wraps the kernel's `struct cred`.
 ///
 /// Credentials are used for various security checks in the kernel.
@@ -48,10 +44,17 @@ impl Credential {
     /// The caller must ensure that `ptr` is valid and remains valid for the lifetime of the
     /// returned [`Credential`] reference.
     #[inline]
+    #[safety{ValidPtr}]
     pub unsafe fn from_ptr<'a>(ptr: *const bindings::cred) -> &'a Credential {
         // SAFETY: The safety requirements guarantee the validity of the dereference, while the
         // `Credential` type being transparent makes the cast ok.
         unsafe { &*ptr.cast() }
+    }
+
+    /// Returns a raw pointer to the inner credential.
+    #[inline]
+    pub fn as_ptr(&self) -> *const bindings::cred {
+        self.0.get()
     }
 
     /// Get the id for this security context.

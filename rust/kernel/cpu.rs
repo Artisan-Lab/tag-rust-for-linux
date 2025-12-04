@@ -5,7 +5,7 @@
 //! C header: [`include/linux/cpu.h`](srctree/include/linux/cpu.h)
 
 use crate::{bindings, device::Device, error::Result, prelude::ENODEV};
-
+use safety_macro::safety;
 /// Returns the maximum number of possible CPUs in the current system configuration.
 #[inline]
 pub fn nr_cpu_ids() -> u32 {
@@ -52,6 +52,7 @@ impl CpuId {
     /// # Safety
     ///
     /// The caller must ensure that `id` is a valid CPU ID (i.e., `0 <= id < nr_cpu_ids()`).
+    #[safety{ValidNum}]
     #[inline]
     pub unsafe fn from_i32_unchecked(id: i32) -> Self {
         debug_assert!(id >= 0);
@@ -76,6 +77,7 @@ impl CpuId {
     /// # Safety
     ///
     /// The caller must ensure that `id` is a valid CPU ID (i.e., `0 <= id < nr_cpu_ids()`).
+    #[safety{ValidNum}]
     #[inline]
     pub unsafe fn from_u32_unchecked(id: u32) -> Self {
         debug_assert!(id < nr_cpu_ids());
@@ -109,6 +111,7 @@ impl CpuId {
     /// unexpectedly due to preemption or CPU migration. It should only be
     /// used when the context ensures that the task remains on the same CPU
     /// or the users could use a stale (yet valid) CPU ID.
+    #[inline]
     pub fn current() -> Self {
         // SAFETY: raw_smp_processor_id() always returns a valid CPU ID.
         unsafe { Self::from_u32_unchecked(bindings::raw_smp_processor_id()) }
@@ -138,6 +141,7 @@ impl From<CpuId> for i32 {
 /// Callers must ensure that the CPU device is not used after it has been unregistered.
 /// This can be achieved, for example, by registering a CPU hotplug notifier and removing
 /// any references to the CPU device within the notifier's callback.
+#[safety{MayInvalid(Device)}]
 pub unsafe fn from_cpu(cpu: CpuId) -> Result<&'static Device> {
     // SAFETY: It is safe to call `get_cpu_device()` for any CPU.
     let ptr = unsafe { bindings::get_cpu_device(u32::from(cpu)) };
@@ -147,5 +151,5 @@ pub unsafe fn from_cpu(cpu: CpuId) -> Result<&'static Device> {
 
     // SAFETY: The pointer returned by `get_cpu_device()`, if not `NULL`, is a valid pointer to
     // a `struct device` and is never freed by the C code.
-    Ok(unsafe { Device::as_ref(ptr) })
+    Ok(unsafe { Device::from_raw(ptr) })
 }

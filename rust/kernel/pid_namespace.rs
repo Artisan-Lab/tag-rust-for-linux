@@ -7,12 +7,9 @@
 //! C header: [`include/linux/pid_namespace.h`](srctree/include/linux/pid_namespace.h) and
 //! [`include/linux/pid.h`](srctree/include/linux/pid.h)
 
-use crate::{
-    bindings,
-    types::{AlwaysRefCounted, Opaque},
-};
+use crate::{bindings, sync::aref::AlwaysRefCounted, types::Opaque};
 use core::ptr;
-
+use safety_macro::safety;
 /// Wraps the kernel's `struct pid_namespace`. Thread safe.
 ///
 /// This structure represents the Rust abstraction for a C `struct pid_namespace`. This
@@ -36,6 +33,7 @@ impl PidNamespace {
     ///
     /// The caller must ensure that `ptr` is valid and remains valid for the lifetime of the
     /// returned [`PidNamespace`] reference.
+    #[safety{ValidPtr(ptr, bindings::pid_namespace, 1)}]
     pub unsafe fn from_ptr<'a>(ptr: *const bindings::pid_namespace) -> &'a Self {
         // SAFETY: The safety requirements guarantee the validity of the dereference, while the
         // `PidNamespace` type being transparent makes the cast ok.

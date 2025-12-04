@@ -120,7 +120,7 @@ use crate::sync::ArcBorrow;
 use crate::types::Opaque;
 use core::cell::UnsafeCell;
 use core::marker::PhantomData;
-
+use safety_macro::safety;
 /// A configfs subsystem.
 ///
 /// This is the top level entrypoint for a configfs hierarchy. To register
@@ -151,13 +151,13 @@ impl<Data> Subsystem<Data> {
         data: impl PinInit<Data, Error>,
     ) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
-            subsystem <- pin_init::zeroed().chain(
+            subsystem <- pin_init::init_zeroed().chain(
                 |place: &mut Opaque<bindings::configfs_subsystem>| {
                     // SAFETY: We initialized the required fields of `place.group` above.
                     unsafe {
                         bindings::config_group_init_type_name(
                             &mut (*place.get()).su_group,
-                            name.as_ptr(),
+                            name.as_char_ptr(),
                             item_type.as_ptr(),
                         )
                     };
@@ -261,9 +261,9 @@ impl<Data> Group<Data> {
         data: impl PinInit<Data, Error>,
     ) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
-            group <- pin_init::zeroed().chain(|v: &mut Opaque<bindings::config_group>| {
+            group <- pin_init::init_zeroed().chain(|v: &mut Opaque<bindings::config_group>| {
                 let place = v.get();
-                let name = name.as_bytes_with_nul().as_ptr();
+                let name = name.to_bytes_with_nul().as_ptr();
                 // SAFETY: It is safe to initialize a group once it has been zeroed.
                 unsafe {
                     bindings::config_group_init_type_name(place, name.cast(), item_type.as_ptr())
@@ -279,7 +279,7 @@ impl<Data> Group<Data> {
 // within the `group` field.
 unsafe impl<Data> HasGroup<Data> for Group<Data> {
     unsafe fn group(this: *const Self) -> *const bindings::config_group {
-        Opaque::raw_get(
+        Opaque::cast_into(
             // SAFETY: By impl and function safety requirements this field
             // projection is within bounds of the allocation.
             unsafe { &raw const (*this).group },
@@ -305,6 +305,7 @@ unsafe impl<Data> HasGroup<Data> for Group<Data> {
 /// Otherwise, `this` must be a pointer to a `bindings::config_group` that
 /// is embedded in a `bindings::configfs_subsystem` that is embedded in a
 /// `Subsystem<Parent>`.
+#[safety{ValidPtr}]
 unsafe fn get_group_data<'a, Parent>(this: *mut bindings::config_group) -> &'a Parent {
     // SAFETY: `this` is a valid pointer.
     let is_root = unsafe { (*this).cg_subsys.is_null() };
@@ -341,6 +342,7 @@ where
     /// `Subsystem<Parent>`.
     ///
     /// `name` must point to a null terminated string.
+    #[safety{ValidPtr, ValidCStr}]
     unsafe extern "C" fn make_group(
         this: *mut bindings::config_group,
         name: *const kernel::ffi::c_char,
@@ -387,6 +389,7 @@ where
     ///
     /// `item` must point to a `bindings::config_item` within a
     /// `bindings::config_group` within a `Group<Child>`.
+    #[safety{ValidPtr}]
     unsafe extern "C" fn drop_item(
         this: *mut bindings::config_group,
         item: *mut bindings::config_item,
@@ -443,6 +446,7 @@ where
     ///
     /// This function will destroy the pointee of `this`. The pointee of `this`
     /// must not be accessed after the function returns.
+    #[safety{ContainerOf(this, Group<Parent>, cg_item), NonAccessable(this)}]
     unsafe extern "C" fn release(this: *mut bindings::config_item) {
         // SAFETY: By function safety requirements, `this` is embedded in a
         // `config_group`.
@@ -547,6 +551,7 @@ where
     /// `bindings::configfs_subsystem` that is embedded in a `Subsystem<Data>`.
     ///
     /// `page` must point to a writable buffer of size at least [`PAGE_SIZE`].
+    #[safety{ContainerOf(item, bindings::config_group, cg_item), ValidWrite(page, PAGE_SIZE)}]
     unsafe extern "C" fn show(
         item: *mut bindings::config_item,
         page: *mut kernel::ffi::c_char,
@@ -580,6 +585,7 @@ where
     /// `bindings::configfs_subsystem` that is embedded in a `Subsystem<Data>`.
     ///
     /// `page` must point to a readable buffer of size at least `size`.
+    #[safety{ContainerOf(item, bindings::config_group, cg_item), ValidRead(page, size)}]
     unsafe extern "C" fn store(
         item: *mut bindings::config_item,
         page: *const kernel::ffi::c_char,
@@ -613,7 +619,7 @@ where
     pub const fn new(name: &'static CStr) -> Self {
         Self {
             attribute: Opaque::new(bindings::configfs_attribute {
-                ca_name: name.as_char_ptr(),
+                ca_name: crate::str::as_char_ptr_in_const_context(name),
                 ca_owner: core::ptr::null_mut(),
                 ca_mode: 0o660,
                 show: Some(Self::show),
@@ -697,6 +703,7 @@ impl<const N: usize, Data> AttributeList<N, Data> {
     /// This function must only be called by the [`kernel::configfs_attrs`]
     /// macro.
     #[doc(hidden)]
+    #[safety{CalledBy("kernel::configfs_attrs_macro")}]
     pub const unsafe fn new() -> Self {
         Self(UnsafeCell::new([core::ptr::null_mut(); N]), PhantomData)
     }
@@ -706,6 +713,7 @@ impl<const N: usize, Data> AttributeList<N, Data> {
     /// The caller must ensure that there are no other concurrent accesses to
     /// `self`. That is, the caller has exclusive access to `self.`
     #[doc(hidden)]
+    #[safety{NonConcurrent(self)}]
     pub const unsafe fn add<const I: usize, const ID: u64, O>(
         &'static self,
         attribute: &'static Attribute<ID, O, Data>,
@@ -1039,3 +1047,5 @@ macro_rules! configfs_attrs {
     };
 
 }
+
+pub use crate::configfs_attrs;

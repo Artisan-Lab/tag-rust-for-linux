@@ -38,7 +38,7 @@ impl<'a> PollTable<'a> {
     ///
     /// # Safety
     ///
-    /// The pointer must be null or reference a valid `poll_table` for the duration of `'a`.
+    /// The pointer must be null or [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) for the duration of `'a`.
     pub unsafe fn from_raw(table: *mut bindings::poll_table) -> Self {
         // INVARIANTS: The safety requirements are the same as the struct invariants.
         PollTable {

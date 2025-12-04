@@ -141,7 +141,7 @@ impl<T: drm::Driver> Device<T> {
 
     /// # Safety
     ///
-    /// `ptr` must be a valid pointer to a `struct device` embedded in `Self`.
+    /// `ptr` must be a [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) pointer to a `struct device` embedded in `Self`.
     unsafe fn from_drm_device(ptr: *const bindings::drm_device) -> *mut Self {
         // SAFETY: By the safety requirements of this function `ptr` is a valid pointer to a
         // `struct drm_device` embedded in `Self`.
@@ -160,7 +160,7 @@ impl<T: drm::Driver> Device<T> {
     ///
     /// # Safety
     ///
-    /// Callers must ensure that `ptr` is valid, non-null, and has a non-zero reference count,
+    /// Callers must ensure that `ptr` is [valid](https://doc.rust-lang.org/std/ptr/index.html#safety), and has a non-zero reference count,
     /// i.e. it must be ensured that the reference count of the C `struct drm_device` `ptr` points
     /// to can't drop to zero, for the duration of this function call and the entire duration when
     /// the returned reference exists.

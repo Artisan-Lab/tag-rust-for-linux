@@ -240,7 +240,7 @@ impl<T: Operations> OperationsVTable<T> {
     ///
     /// - This function may only be called by blk-mq C infrastructure.
     /// - `_set` must point to an initialized `TagSet<T>`.
-    /// - `rq` must point to an initialized and valid `Request`.
+    /// - `rq` must point to an initialized and [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) `Request`.
     unsafe extern "C" fn exit_request_callback(
         _set: *mut bindings::blk_mq_tag_set,
         rq: *mut bindings::request,

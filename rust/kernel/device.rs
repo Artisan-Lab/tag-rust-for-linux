@@ -166,7 +166,7 @@ impl Device {
     ///
     /// # Safety
     ///
-    /// Callers must ensure that `ptr` is valid, non-null, and has a non-zero reference count,
+    /// Callers must ensure that `ptr` is [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) and has a non-zero reference count,
     /// i.e. it must be ensured that the reference count of the C `struct device` `ptr` points to
     /// can't drop to zero, for the duration of this function call.
     ///
@@ -273,7 +273,7 @@ impl<Ctx: DeviceContext> Device<Ctx> {
     ///
     /// # Safety
     ///
-    /// Callers must ensure that `ptr` is valid, non-null, and has a non-zero reference count,
+    /// Callers must ensure that `ptr` is [valid](https://doc.rust-lang.org/std/ptr/index.html#safety), and has a non-zero reference count,
     /// i.e. it must be ensured that the reference count of the C `struct device` `ptr` points to
     /// can't drop to zero, for the duration of this function call and the entire duration when the
     /// returned reference exists.

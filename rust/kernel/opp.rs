@@ -621,7 +621,7 @@ impl Table {
     ///
     /// # Safety
     ///
-    /// Callers must ensure that `ptr` is valid and non-null.
+    /// Callers must ensure that `ptr` is [valid](https://doc.rust-lang.org/std/ptr/index.html#safety).
     unsafe fn from_raw_table(ptr: *mut bindings::opp_table, dev: &ARef<Device>) -> Self {
         // SAFETY: By the safety requirements, ptr is valid and its refcount will be incremented.
         //
@@ -1061,7 +1061,7 @@ impl OPP {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that `ptr` is valid and the refcount of the [`OPP`] is incremented.
+    /// The caller must ensure that `ptr` is [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) and the refcount of the [`OPP`] is incremented.
     /// The caller must also ensure that it doesn't explicitly drop the refcount of the [`OPP`], as
     /// the returned [`ARef`] object takes over the refcount increment on the underlying object and
     /// the same will be dropped along with it.
@@ -1081,7 +1081,7 @@ impl OPP {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that `ptr` is valid and remains valid for the duration of `'a`.
+    /// The caller must ensure that `ptr` is [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) and remains valid for the duration of `'a`.
     #[inline]
     pub unsafe fn from_raw_opp<'a>(ptr: *mut bindings::dev_pm_opp) -> Result<&'a Self> {
         // SAFETY: The caller guarantees that the pointer is not dangling and stays valid for the

@@ -446,7 +446,7 @@ where
     ///
     /// This function will destroy the pointee of `this`. The pointee of `this`
     /// must not be accessed after the function returns.
-    #[safety{ContainerOf(this, Group<Parent>, cg_item), NonAccessable(this)}]
+    #[safety{ContainerOf(this, "Group<Parent>", cg_item), NonAccessable(this)}]
     unsafe extern "C" fn release(this: *mut bindings::config_item) {
         // SAFETY: By function safety requirements, `this` is embedded in a
         // `config_group`.

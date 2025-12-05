@@ -12,7 +12,7 @@ use crate::{
     clk::Hertz,
     cpumask::{Cpumask, CpumaskVar},
     device::Device,
-    error::{code::*, from_err_ptr, from_result, to_result, Result, VTABLE_DEFAULT_ERROR},
+    error::{Result, VTABLE_DEFAULT_ERROR, code::*, from_err_ptr, from_result, to_result},
     ffi::{c_char, c_ulong},
     prelude::*,
     str::CString,
@@ -1062,7 +1062,7 @@ impl OPP {
     /// The caller must also ensure that it doesn't explicitly drop the refcount of the [`OPP`], as
     /// the returned [`ARef`] object takes over the refcount increment on the underlying object and
     /// the same will be dropped along with it.
-    #[safety{ValidPtr::"the pointer is valid and the refcount of OPP is incremented", RefTransfer(ptr, ARef)}]
+    #[safety{ValidPtr: "the pointer is valid and the refcount of OPP is incremented"; RefTransfer(ptr, ARef)}]
     pub unsafe fn from_raw_opp_owned(ptr: *mut bindings::dev_pm_opp) -> Result<ARef<Self>> {
         let ptr = ptr::NonNull::new(ptr).ok_or(ENODEV)?;
 
@@ -1081,7 +1081,7 @@ impl OPP {
     ///
     /// The caller must ensure that `ptr` is valid and remains valid for the duration of `'a`.
     #[inline]
-    #[safety{ValidPtr::"the pointer is valid and remains valid for the duration of 'a"}]
+    #[safety{ValidPtr: "the pointer is valid and remains valid for the duration of 'a"}]
     pub unsafe fn from_raw_opp<'a>(ptr: *mut bindings::dev_pm_opp) -> Result<&'a Self> {
         // SAFETY: The caller guarantees that the pointer is not dangling and stays valid for the
         // duration of 'a. The cast is okay because [`OPP`] is `repr(transparent)`.

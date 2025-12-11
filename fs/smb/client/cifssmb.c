@@ -361,7 +361,7 @@ vt2_err:
 }
 
 static int
-decode_ext_sec_blob(struct cifs_ses *ses, NEGOTIATE_RSP *pSMBr)
+decode_ext_sec_blob(struct cifs_ses *ses, SMB_NEGOTIATE_RSP *pSMBr)
 {
 	int	rc = 0;
 	u16	count;
@@ -419,8 +419,8 @@ CIFSSMBNegotiate(const unsigned int xid,
 		 struct cifs_ses *ses,
 		 struct TCP_Server_Info *server)
 {
-	NEGOTIATE_REQ *pSMB;
-	NEGOTIATE_RSP *pSMBr;
+	SMB_NEGOTIATE_REQ *pSMB;
+	SMB_NEGOTIATE_RSP *pSMBr;
 	int rc = 0;
 	int bytes_returned;
 	int i;
@@ -614,7 +614,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 
 	iov[0].iov_len = 4;
 	iov[0].iov_base = smb;
-	iov[1].iov_len = get_rfc1002_length(smb);
+	iov[1].iov_len = get_rfc1002_len(smb);
 	iov[1].iov_base = (char *)smb + 4;
 
 	rc = cifs_call_async(server, &rqst, NULL, cifs_echo_callback, NULL,
@@ -1311,6 +1311,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		.rreq_debug_id = rdata->rreq->debug_id,
 		.rreq_debug_index = rdata->subreq.debug_index,
 	};
+	unsigned int rreq_debug_id = rdata->rreq->debug_id;
+	unsigned int subreq_debug_index = rdata->subreq.debug_index;
 
 	cifs_dbg(FYI, "%s: mid=%llu state=%d result=%d bytes=%zu\n",
 		 __func__, mid->mid, mid->mid_state, rdata->result,
@@ -1361,6 +1363,14 @@ do_retry:
 	if (rdata->result == -ENODATA) {
 		rdata->result = 0;
 		__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
+		trace_smb3_read_err(rdata->rreq->debug_id,
+				    rdata->subreq.debug_index,
+				    rdata->xid,
+				    rdata->req->cfile->fid.persistent_fid,
+				    tcon->tid, tcon->ses->Suid,
+				    rdata->subreq.start + rdata->subreq.transferred,
+				    rdata->subreq.len   - rdata->subreq.transferred,
+				    rdata->result);
 	} else {
 		size_t trans = rdata->subreq.transferred + rdata->got_bytes;
 		if (trans < rdata->subreq.len &&
@@ -1372,8 +1382,18 @@ do_retry:
 		}
 		if (rdata->got_bytes)
 			__set_bit(NETFS_SREQ_MADE_PROGRESS, &rdata->subreq.flags);
+		trace_smb3_read_done(rdata->rreq->debug_id,
+				     rdata->subreq.debug_index,
+				     rdata->xid,
+				     rdata->req->cfile->fid.persistent_fid,
+				     tcon->tid, tcon->ses->Suid,
+				     rdata->subreq.start + rdata->subreq.transferred,
+				     rdata->got_bytes);
 	}
 
+	trace_smb3_rw_credits(rreq_debug_id, subreq_debug_index, rdata->credits.value,
+			      server->credits, server->in_flight,
+			      0, cifs_trace_rw_credits_read_response_clear);
 	rdata->credits.value = 0;
 	rdata->subreq.error = rdata->result;
 	rdata->subreq.transferred += rdata->got_bytes;
@@ -1381,6 +1401,9 @@ do_retry:
 	netfs_read_subreq_terminated(&rdata->subreq);
 	release_mid(mid);
 	add_credits(server, &credits, 0);
+	trace_smb3_rw_credits(rreq_debug_id, subreq_debug_index, 0,
+			      server->credits, server->in_flight,
+			      credits.value, cifs_trace_rw_credits_read_response_add);
 }
 
 /* cifs_async_readv - send an async write, and set up mid to handle result */
@@ -1435,7 +1458,14 @@ cifs_async_readv(struct cifs_io_subrequest *rdata)
 	rdata->iov[0].iov_base = smb;
 	rdata->iov[0].iov_len = 4;
 	rdata->iov[1].iov_base = (char *)smb + 4;
-	rdata->iov[1].iov_len = get_rfc1002_length(smb);
+	rdata->iov[1].iov_len = get_rfc1002_len(smb);
+
+	trace_smb3_read_enter(rdata->rreq->debug_id,
+			      rdata->subreq.debug_index,
+			      rdata->xid,
+			      rdata->req->cfile->fid.netfid,
+			      tcon->tid, tcon->ses->Suid,
+			      rdata->subreq.start, rdata->subreq.len);
 
 	rc = cifs_call_async(tcon->ses->server, &rqst, cifs_readv_receive,
 			     cifs_readv_callback, NULL, rdata, 0, NULL);
@@ -1800,7 +1830,7 @@ cifs_async_writev(struct cifs_io_subrequest *wdata)
 	/* 4 for RFC1001 length + 1 for BCC */
 	iov[0].iov_len = 4;
 	iov[0].iov_base = smb;
-	iov[1].iov_len = get_rfc1002_length(smb) + 1;
+	iov[1].iov_len = get_rfc1002_len(smb) + 1;
 	iov[1].iov_base = (char *)smb + 4;
 
 	rqst.rq_iov = iov;
@@ -4716,7 +4746,7 @@ CIFSSMBQFSInfo(const unsigned int xid, struct cifs_tcon *tcon,
 /* level 0x103 SMB_QUERY_FILE_SYSTEM_INFO */
 	TRANSACTION2_QFSI_REQ *pSMB = NULL;
 	TRANSACTION2_QFSI_RSP *pSMBr = NULL;
-	FILE_SYSTEM_INFO *response_data;
+	FILE_SYSTEM_SIZE_INFO *response_data;
 	int rc = 0;
 	int bytes_returned = 0;
 	__u16 params, byte_count;
@@ -4764,7 +4794,7 @@ QFSInfoRetry:
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 
 			response_data =
-			    (FILE_SYSTEM_INFO
+			    (FILE_SYSTEM_SIZE_INFO
 			     *) (((char *) &pSMBr->hdr.Protocol) +
 				 data_offset);
 			FSData->f_bsize =
@@ -4781,7 +4811,7 @@ QFSInfoRetry:
 			FSData->f_blocks =
 			    le64_to_cpu(response_data->TotalAllocationUnits);
 			FSData->f_bfree = FSData->f_bavail =
-			    le64_to_cpu(response_data->FreeAllocationUnits);
+			    le64_to_cpu(response_data->AvailableAllocationUnits);
 			cifs_dbg(FYI, "Blocks: %lld  Free: %lld Block size %ld\n",
 				 (unsigned long long)FSData->f_blocks,
 				 (unsigned long long)FSData->f_bfree,

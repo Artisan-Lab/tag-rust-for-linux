@@ -274,9 +274,9 @@ void ptep_reset_dat_prot(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	preempt_disable();
 	atomic_inc(&mm->context.flush_count);
 	if (cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__ptep_rdp(addr, ptep, 0, 0, 1);
+		__ptep_rdp(addr, ptep, 1);
 	else
-		__ptep_rdp(addr, ptep, 0, 0, 0);
+		__ptep_rdp(addr, ptep, 0);
 	/*
 	 * PTE is not invalidated by RDP, only _PAGE_PROTECT is cleared. That
 	 * means it is still valid and active, and must not be changed according
@@ -360,14 +360,10 @@ static inline void pmdp_idte_global(struct mm_struct *mm,
 			    mm->context.asce, IDTE_GLOBAL);
 		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 			gmap_pmdp_idte_global(mm, addr);
-	} else if (cpu_has_idte()) {
+	} else {
 		__pmdp_idte(addr, pmdp, 0, 0, IDTE_GLOBAL);
 		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 			gmap_pmdp_idte_global(mm, addr);
-	} else {
-		__pmdp_csp(pmdp);
-		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
-			gmap_pmdp_csp(mm, addr);
 	}
 }
 
@@ -487,14 +483,8 @@ static inline void pudp_idte_global(struct mm_struct *mm,
 	if (machine_has_tlb_guest())
 		__pudp_idte(addr, pudp, IDTE_NODAT | IDTE_GUEST_ASCE,
 			    mm->context.asce, IDTE_GLOBAL);
-	else if (cpu_has_idte())
-		__pudp_idte(addr, pudp, 0, 0, IDTE_GLOBAL);
 	else
-		/*
-		 * Invalid bit position is the same for pmd and pud, so we can
-		 * reuse _pmd_csp() here
-		 */
-		__pmdp_csp((pmd_t *) pudp);
+		__pudp_idte(addr, pudp, 0, 0, IDTE_GLOBAL);
 }
 
 static inline pud_t pudp_flush_direct(struct mm_struct *mm,

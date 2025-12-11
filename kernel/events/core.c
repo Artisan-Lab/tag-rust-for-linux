@@ -56,6 +56,7 @@
 #include <linux/buildid.h>
 #include <linux/task_work.h>
 #include <linux/percpu-rwsem.h>
+#include <linux/unwind_deferred.h>
 
 #include "internal.h"
 
@@ -8200,6 +8201,8 @@ static u64 perf_get_page_size(unsigned long addr)
 
 static struct perf_callchain_entry __empty_callchain = { .nr = 0, };
 
+static struct unwind_work perf_unwind_work;
+
 struct perf_callchain_entry *
 perf_callchain(struct perf_event *event, struct pt_regs *regs)
 {
@@ -8208,8 +8211,11 @@ perf_callchain(struct perf_event *event, struct pt_regs *regs)
 		!(current->flags & (PF_KTHREAD | PF_USER_WORKER));
 	/* Disallow cross-task user callchains. */
 	bool crosstask = event->ctx->task && event->ctx->task != current;
+	bool defer_user = IS_ENABLED(CONFIG_UNWIND_USER) && user &&
+			  event->attr.defer_callchain;
 	const u32 max_stack = event->attr.sample_max_stack;
 	struct perf_callchain_entry *callchain;
+	u64 defer_cookie;
 
 	if (!current->mm)
 		user = false;
@@ -8217,8 +8223,13 @@ perf_callchain(struct perf_event *event, struct pt_regs *regs)
 	if (!kernel && !user)
 		return &__empty_callchain;
 
-	callchain = get_perf_callchain(regs, kernel, user,
-				       max_stack, crosstask, true);
+	if (!(user && defer_user && !crosstask &&
+	      unwind_deferred_request(&perf_unwind_work, &defer_cookie) >= 0))
+		defer_cookie = 0;
+
+	callchain = get_perf_callchain(regs, kernel, user, max_stack,
+				       crosstask, true, defer_cookie);
+
 	return callchain ?: &__empty_callchain;
 }
 
@@ -10003,6 +10014,66 @@ void perf_event_bpf_event(struct bpf_prog *prog,
 	perf_iterate_sb(perf_event_bpf_output, &bpf_event, NULL);
 }
 
+struct perf_callchain_deferred_event {
+	struct unwind_stacktrace *trace;
+	struct {
+		struct perf_event_header	header;
+		u64				cookie;
+		u64				nr;
+		u64				ips[];
+	} event;
+};
+
+static void perf_callchain_deferred_output(struct perf_event *event, void *data)
+{
+	struct perf_callchain_deferred_event *deferred_event = data;
+	struct perf_output_handle handle;
+	struct perf_sample_data sample;
+	int ret, size = deferred_event->event.header.size;
+
+	if (!event->attr.defer_output)
+		return;
+
+	/* XXX do we really need sample_id_all for this ??? */
+	perf_event_header__init_id(&deferred_event->event.header, &sample, event);
+
+	ret = perf_output_begin(&handle, &sample, event,
+				deferred_event->event.header.size);
+	if (ret)
+		goto out;
+
+	perf_output_put(&handle, deferred_event->event);
+	for (int i = 0; i < deferred_event->trace->nr; i++) {
+		u64 entry = deferred_event->trace->entries[i];
+		perf_output_put(&handle, entry);
+	}
+	perf_event__output_id_sample(event, &handle, &sample);
+
+	perf_output_end(&handle);
+out:
+	deferred_event->event.header.size = size;
+}
+
+static void perf_unwind_deferred_callback(struct unwind_work *work,
+					 struct unwind_stacktrace *trace, u64 cookie)
+{
+	struct perf_callchain_deferred_event deferred_event = {
+		.trace = trace,
+		.event = {
+			.header = {
+				.type = PERF_RECORD_CALLCHAIN_DEFERRED,
+				.misc = PERF_RECORD_MISC_USER,
+				.size = sizeof(deferred_event.event) +
+					(trace->nr * sizeof(u64)),
+			},
+			.cookie = cookie,
+			.nr = trace->nr,
+		},
+	};
+
+	perf_iterate_sb(perf_callchain_deferred_output, &deferred_event, NULL);
+}
+
 struct perf_text_poke_event {
 	const void		*old_bytes;
 	const void		*new_bytes;
@@ -11773,7 +11844,8 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 
 	event = container_of(hrtimer, struct perf_event, hw.hrtimer);
 
-	if (event->state != PERF_EVENT_STATE_ACTIVE)
+	if (event->state != PERF_EVENT_STATE_ACTIVE ||
+	    event->hw.state & PERF_HES_STOPPED)
 		return HRTIMER_NORESTART;
 
 	event->pmu->read(event);
@@ -11819,15 +11891,20 @@ static void perf_swevent_cancel_hrtimer(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	/*
-	 * The throttle can be triggered in the hrtimer handler.
-	 * The HRTIMER_NORESTART should be used to stop the timer,
-	 * rather than hrtimer_cancel(). See perf_swevent_hrtimer()
+	 * Careful: this function can be triggered in the hrtimer handler,
+	 * for cpu-clock events, so hrtimer_cancel() would cause a
+	 * deadlock.
+	 *
+	 * So use hrtimer_try_to_cancel() to try to stop the hrtimer,
+	 * and the cpu-clock handler also sets the PERF_HES_STOPPED flag,
+	 * which guarantees that perf_swevent_hrtimer() will stop the
+	 * hrtimer once it sees the PERF_HES_STOPPED flag.
 	 */
 	if (is_sampling_event(event) && (hwc->interrupts != MAX_INTERRUPTS)) {
 		ktime_t remaining = hrtimer_get_remaining(&hwc->hrtimer);
 		local64_set(&hwc->period_left, ktime_to_ns(remaining));
 
-		hrtimer_cancel(&hwc->hrtimer);
+		hrtimer_try_to_cancel(&hwc->hrtimer);
 	}
 }
 
@@ -11871,12 +11948,14 @@ static void cpu_clock_event_update(struct perf_event *event)
 
 static void cpu_clock_event_start(struct perf_event *event, int flags)
 {
+	event->hw.state = 0;
 	local64_set(&event->hw.prev_count, local_clock());
 	perf_swevent_start_hrtimer(event);
 }
 
 static void cpu_clock_event_stop(struct perf_event *event, int flags)
 {
+	event->hw.state = PERF_HES_STOPPED;
 	perf_swevent_cancel_hrtimer(event);
 	if (flags & PERF_EF_UPDATE)
 		cpu_clock_event_update(event);
@@ -11893,7 +11972,7 @@ static int cpu_clock_event_add(struct perf_event *event, int flags)
 
 static void cpu_clock_event_del(struct perf_event *event, int flags)
 {
-	cpu_clock_event_stop(event, flags);
+	cpu_clock_event_stop(event, PERF_EF_UPDATE);
 }
 
 static void cpu_clock_event_read(struct perf_event *event)
@@ -11950,12 +12029,14 @@ static void task_clock_event_update(struct perf_event *event, u64 now)
 
 static void task_clock_event_start(struct perf_event *event, int flags)
 {
+	event->hw.state = 0;
 	local64_set(&event->hw.prev_count, event->ctx->time);
 	perf_swevent_start_hrtimer(event);
 }
 
 static void task_clock_event_stop(struct perf_event *event, int flags)
 {
+	event->hw.state = PERF_HES_STOPPED;
 	perf_swevent_cancel_hrtimer(event);
 	if (flags & PERF_EF_UPDATE)
 		task_clock_event_update(event, event->ctx->time);
@@ -14798,6 +14879,9 @@ void __init perf_event_init(void)
 	int ret;
 
 	idr_init(&pmu_idr);
+
+	unwind_deferred_init(&perf_unwind_work,
+			     perf_unwind_deferred_callback);
 
 	perf_event_init_all_cpus();
 	init_srcu_struct(&pmus_srcu);

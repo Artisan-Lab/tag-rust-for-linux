@@ -250,10 +250,9 @@ struct ftrace_likely_data {
 /*
  * GCC does not warn about unused static inline functions for -Wunused-function.
  * Suppress the warning in clang as well by using __maybe_unused, but enable it
- * for W=1 build. This will allow clang to find unused functions. Remove the
- * __inline_maybe_unused entirely after fixing most of -Wunused-function warnings.
+ * for W=2 build. This will allow clang to find unused functions.
  */
-#ifdef KBUILD_EXTRA_WARN1
+#ifdef KBUILD_EXTRA_WARN2
 #define __inline_maybe_unused
 #else
 #define __inline_maybe_unused __maybe_unused
@@ -394,6 +393,21 @@ struct ftrace_likely_data {
 #define __counted_by_be(member)	__counted_by(member)
 #endif
 
+/*
+ * This designates the minimum number of elements a passed array parameter must
+ * have. For example:
+ *
+ *     void some_function(u8 param[at_least 7]);
+ *
+ * If a caller passes an array with fewer than 7 elements, the compiler will
+ * emit a warning.
+ */
+#ifndef __CHECKER__
+#define at_least static
+#else
+#define at_least
+#endif
+
 /* Do not trap wrapping arithmetic within an annotated function. */
 #ifdef CONFIG_UBSAN_INTEGER_WRAP
 # define __signed_wrap __attribute__((no_sanitize("signed-integer-overflow")))
@@ -459,6 +473,12 @@ struct ftrace_likely_data {
 # define __nocfi		__attribute__((__no_sanitize__("kcfi")))
 #else
 # define __nocfi
+#endif
+
+#if defined(CONFIG_ARCH_USES_CFI_GENERIC_LLVM_PASS)
+# define __nocfi_generic	__nocfi
+#else
+# define __nocfi_generic
 #endif
 
 /*

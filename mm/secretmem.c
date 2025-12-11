@@ -82,13 +82,13 @@ retry:
 		__folio_mark_uptodate(folio);
 		err = filemap_add_folio(mapping, folio, offset, gfp);
 		if (unlikely(err)) {
-			folio_put(folio);
 			/*
 			 * If a split of large page was required, it
 			 * already happened when we marked the page invalid
 			 * which guarantees that this call won't fail
 			 */
 			set_direct_map_default_noflush(folio_page(folio, 0));
+			folio_put(folio);
 			if (err == -EEXIST)
 				goto retry;
 
@@ -224,9 +224,6 @@ err_free_inode:
 
 SYSCALL_DEFINE1(memfd_secret, unsigned int, flags)
 {
-	struct file *file;
-	int fd, err;
-
 	/* make sure local flags do not confict with global fcntl.h */
 	BUILD_BUG_ON(SECRETMEM_FLAGS_MASK & O_CLOEXEC);
 
@@ -238,22 +235,7 @@ SYSCALL_DEFINE1(memfd_secret, unsigned int, flags)
 	if (atomic_read(&secretmem_users) < 0)
 		return -ENFILE;
 
-	fd = get_unused_fd_flags(flags & O_CLOEXEC);
-	if (fd < 0)
-		return fd;
-
-	file = secretmem_file_create(flags);
-	if (IS_ERR(file)) {
-		err = PTR_ERR(file);
-		goto err_put_fd;
-	}
-
-	fd_install(fd, file);
-	return fd;
-
-err_put_fd:
-	put_unused_fd(fd);
-	return err;
+	return FD_ADD(flags & O_CLOEXEC, secretmem_file_create(flags));
 }
 
 static int secretmem_init_fs_context(struct fs_context *fc)

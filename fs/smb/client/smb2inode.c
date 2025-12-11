@@ -50,7 +50,7 @@ static inline __u32 file_create_options(struct dentry *dentry)
 
 	if (dentry) {
 		ci = CIFS_I(d_inode(dentry));
-		if (ci->cifsAttrs & ATTR_REPARSE)
+		if (ci->cifsAttrs & ATTR_REPARSE_POINT)
 			return OPEN_REPARSE_POINT;
 	}
 	return 0;
@@ -1294,6 +1294,8 @@ static int smb2_set_path_attr(const unsigned int xid, struct cifs_tcon *tcon,
 	smb2_to_name = cifs_convert_path_to_utf16(to_name, cifs_sb);
 	if (smb2_to_name == NULL) {
 		rc = -ENOMEM;
+		if (cfile)
+			cifsFileInfo_put(cfile);
 		goto smb2_rename_path;
 	}
 	in_iov.iov_base = smb2_to_name;

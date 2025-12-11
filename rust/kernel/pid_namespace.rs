@@ -31,7 +31,7 @@ impl PidNamespace {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that `ptr` is [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) and remains valid for the lifetime of the
+    /// The caller must ensure that `ptr` is valid and remains valid for the lifetime of the
     /// returned [`PidNamespace`] reference.
     pub unsafe fn from_ptr<'a>(ptr: *const bindings::pid_namespace) -> &'a Self {
         // SAFETY: The safety requirements guarantee the validity of the dereference, while the

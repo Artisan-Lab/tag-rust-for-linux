@@ -296,7 +296,7 @@ unsafe impl<Data> HasGroup<Data> for Group<Data> {
 
 /// # Safety
 ///
-/// `this` must be a [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) pointer.
+/// `this` must be a valid pointer.
 ///
 /// If `this` does not represent the root group of a configfs subsystem,
 /// `this` must be a pointer to a `bindings::config_group` embedded in a
@@ -330,7 +330,7 @@ where
 {
     /// # Safety
     ///
-    /// `this` must be a [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) pointer.
+    /// `this` must be a valid pointer.
     ///
     /// If `this` does not represent the root group of a configfs subsystem,
     /// `this` must be a pointer to a `bindings::config_group` embedded in a
@@ -376,9 +376,7 @@ where
     }
 
     /// # Safety
-    /// 
-    /// `this` must be a [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) pointer.
-    /// 
+    ///
     /// If `this` does not represent the root group of a configfs subsystem,
     /// `this` must be a pointer to a `bindings::config_group` embedded in a
     /// `Group<Parent>`.

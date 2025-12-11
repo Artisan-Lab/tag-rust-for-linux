@@ -832,7 +832,7 @@ impl<'a, K, V> Cursor<'a, K, V> {
 
     /// # Safety
     ///
-    /// - `node` must be a [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) pointer to a node in an [`RBTree`].
+    /// - `node` must be a valid pointer to a node in an [`RBTree`].
     /// - The caller has immutable access to `node` for the duration of `'b`.
     unsafe fn to_key_value<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, &'b V) {
         // SAFETY: By the type invariant of `Self`, all non-null `rb_node` pointers stored in `self`
@@ -1043,7 +1043,7 @@ impl<'a, K, V> CursorMut<'a, K, V> {
 
     /// # Safety
     ///
-    /// - `node` must be a [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) pointer to a node in an [`RBTree`].
+    /// - `node` must be a valid pointer to a node in an [`RBTree`].
     /// - The caller has mutable access to `node` for the duration of `'b`.
     unsafe fn to_key_value_mut<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, &'b mut V) {
         // SAFETY: the caller guarantees that `node` is a valid pointer in an `RBTree`.
@@ -1054,7 +1054,7 @@ impl<'a, K, V> CursorMut<'a, K, V> {
 
     /// # Safety
     ///
-    /// - `node` must be a [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) pointer to a node in an [`RBTree`].
+    /// - `node` must be a valid pointer to a node in an [`RBTree`].
     /// - The caller has immutable access to the key for the duration of `'b`.
     unsafe fn to_key_value_raw<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, *mut V) {
         // SAFETY: By the type invariant of `Self`, all non-null `rb_node` pointers stored in `self`

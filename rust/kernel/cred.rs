@@ -41,7 +41,7 @@ impl Credential {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that `ptr` is [valid](https://doc.rust-lang.org/std/ptr/index.html#safety) and remains valid for the lifetime of the
+    /// The caller must ensure that `ptr` is valid and remains valid for the lifetime of the
     /// returned [`Credential`] reference.
     #[inline]
     pub unsafe fn from_ptr<'a>(ptr: *const bindings::cred) -> &'a Credential {

@@ -520,7 +520,7 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
     ///
     /// # Safety
     ///
-    /// The provided pointer must not be [dangling](https://doc.rust-lang.org/std/ptr/index.html#safety) and must be properly aligned. (But the memory
+    /// The provided pointer must not be dangling and must be properly aligned. (But the memory
     /// need not be initialized.)
     #[inline]
     pub unsafe fn raw_get(ptr: *const Self) -> *mut bindings::work_struct {
